@@ -23,28 +23,59 @@ Your master server may also expose matching API documentation at
 
 ## Install
 
+Recommended editable install for development:
+
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -e .
-pip install -e '.[ssh]'  # optional SSH support dependencies
 ```
 
+Classic requirements install:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Optional SSH and development dependencies:
+
+```bash
+pip install -r requirements-ssh.txt
+pip install -r requirements-dev.txt
+```
+
+Because this is a package, `pyproject.toml` is the main dependency definition. The
+`requirements*.txt` files are provided for simple deployments and scripts.
+
 ## Quick Start
+
+Create a file, for example `my_nbu_script.py`:
 
 ```python
 from nbu import NetBackup
 
-nb = NetBackup(
+with NetBackup(
     master="master.company.com",
     username="user",
     password="password",
     domain_type="unixpwd",
     domain_name="master.company.com",
-    version="10.3",
-)
+    version="11.2",
+    verify_ssl=False,
+) as nb:
+    print(nb.ping())
 
-jobs = nb.jobs.list(mode="api")
-ssh_jobs = nb.jobs.list(mode="ssh")
-health = nb.health.check_all()
+    jobs = nb.list_jobs(start_date="2026-07-01", end_date="2026-07-02", limit=100)
+    for job in jobs:
+        print(job.job_id, job.client, job.policy, job.status)
+```
+
+Run it:
+
+```bash
+python my_nbu_script.py
 ```
 
 For day-to-day scripts, use the shorter facade methods:
