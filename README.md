@@ -23,8 +23,6 @@ Your master server may also expose matching API documentation at
 
 ## Install
 
-**Important:** the main `nbu` package requires Python 3.12+.
-
 Recommended editable install for development:
 
 ```bash
@@ -50,19 +48,6 @@ pip install -r requirements-dev.txt
 
 Because this is a package, `pyproject.toml` is the main dependency definition. The
 `requirements*.txt` files are provided for simple deployments and scripts.
-
-### Python 3.6 legacy usage
-
-Python 3.6 cannot install the main package dependencies (`httpx>=0.27` and Pydantic v2). If you
-are forced to run on Python 3.6, use the standalone legacy example instead:
-
-```bash
-python3.6 -m pip install -r requirements-py36.txt
-python3.6 examples/legacy_py36_basic.py
-```
-
-The legacy script uses only `requests` and supports basic REST login, paginated jobs, and
-paginated images. It does not provide typed Pydantic models or the full `nbu` package API.
 
 ## Quick Start
 
