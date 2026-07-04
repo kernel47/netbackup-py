@@ -32,13 +32,13 @@ def test_login_sends_domain_fields_and_vendor_content_type() -> None:
         "domainType": "unixpwd",
         "domainName": "master.example.com",
     }
-    assert captured["headers"]["content-type"] == "application/vnd.netbackup+json;version=3.0"
+    assert captured["headers"]["content-type"] == "application/vnd.netbackup+json;version=7.0"
 
 
 def test_authenticated_requests_use_raw_netbackup_token_by_default() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["authorization"] == "abc123"
-        assert request.headers["accept"] == "application/vnd.netbackup+json;version=3.0"
+        assert request.headers["accept"] == "application/vnd.netbackup+json;version=7.0"
         return httpx.Response(200, json={"data": []})
 
     transport = ApiTransport(

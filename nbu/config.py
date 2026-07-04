@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import os
-from typing import Literal
 
 from pydantic import BaseModel, Field, SecretStr, model_validator
-
-CollectionMode = Literal["api", "ssh"]
 
 
 class NetBackupConfig(BaseModel):
@@ -29,10 +26,6 @@ class NetBackupConfig(BaseModel):
     retries: int = 3
     retry_backoff: float = 0.5
     proxies: dict[str, str] | None = None
-    mode: CollectionMode = "api"
-    ssh_port: int = 22
-    ssh_key_filename: str | None = None
-    command_timeout: float = 120.0
     user_agent: str = "netbackup-py/0.1.0"
     extra_headers: dict[str, str] = Field(default_factory=dict)
 
@@ -74,9 +67,15 @@ class NetBackupConfig(BaseModel):
             major_minor = ".".join(self.version.split(".")[:2])
             self.api_version = {
                 "10.0": "7.0",
+                "10.1": "8.0",
+                "10.2": "9.0",
+                "10.3": "10.0",
+                "10.4": "11.0",
+                "11.0": "13.0",
+                "11.1": "14.0",
                 "11.2": "14.0",
             }.get(major_minor)
-        self.api_version = self.api_version or "3.0"
+        self.api_version = self.api_version or "7.0"
         return self
 
     @property

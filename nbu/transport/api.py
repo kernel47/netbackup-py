@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
 from nbu.auth import TokenState
 from nbu.config import NetBackupConfig
 from nbu.exceptions import ApiError, AuthenticationError, AuthorizationError, NotFoundError, TimeoutError
+
+PaginationMode = Literal["offset", "cursor"]
 
 
 class ApiTransport:
@@ -159,7 +161,7 @@ class ApiTransport:
         params: dict[str, Any] | None = None,
         *,
         paginate: bool = True,
-        pagination: str = "offset",
+        pagination: PaginationMode = "offset",
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         if not paginate:
@@ -180,7 +182,7 @@ class ApiTransport:
         path: str,
         params: dict[str, Any] | None = None,
         *,
-        pagination: str = "offset",
+        pagination: PaginationMode = "offset",
         limit: int | None = None,
     ):
         yielded = 0
@@ -196,7 +198,7 @@ class ApiTransport:
         path: str,
         params: dict[str, Any] | None = None,
         *,
-        pagination: str = "offset",
+        pagination: PaginationMode = "offset",
         limit: int | None = None,
     ):
         query = dict(params or {})
@@ -235,7 +237,7 @@ class ApiTransport:
         return items if isinstance(items, list) else [items]
 
     @staticmethod
-    def _next_offset(data: dict[str, Any], *, pagination: str = "offset") -> str | None:
+    def _next_offset(data: dict[str, Any], *, pagination: PaginationMode = "offset") -> str | None:
         meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
         pagination_meta = meta.get("pagination") if isinstance(meta.get("pagination"), dict) else {}
         next_value = pagination_meta.get("next")

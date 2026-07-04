@@ -12,6 +12,9 @@ with NetBackup(
 ) as nb:
     print(nb.ping())
 
-    for job in nb.iter_jobs(start_date="2026-07-01", end_date="2026-07-02", limit=100):
+    for job in nb.iter_jobs(
+        start_date="2026-07-01T00:00:00Z",
+        end_date="2026-07-02T00:00:00Z",
+        limit=100,
+    ):
         print(job.job_id, job.client, job.policy, job.status)
-

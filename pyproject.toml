@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "netbackup-py"
 version = "0.1.0"
-description = "Modern typed Python automation library for Veritas NetBackup 9.x, 10.x and newer."
+description = "Modern typed Python REST API library for Veritas NetBackup 10.0 and newer."
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -16,7 +16,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-ssh = ["paramiko>=3.4"]
 dev = ["pytest>=8.2", "ruff>=0.5", "mypy>=1.10"]
 
 [tool.setuptools.packages.find]
@@ -29,4 +28,3 @@ pythonpath = ["."]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-

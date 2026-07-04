@@ -25,12 +25,17 @@ class Job(NbuModel):
     kilobytes: int | None = None
     files: int | None = None
     percent_complete: int | None = None
+    backup_id: str | None = None
 
 
 def job_from_mapping(payload: dict[str, Any], source: str = "api") -> Job:
     attrs = payload.get("attributes", payload)
     return Job(
-        id=attrs.get("jobId") or attrs.get("jobid") or attrs.get("id") or attrs.get("job_id"),
+        id=attrs.get("jobId")
+        or attrs.get("jobid")
+        or attrs.get("id")
+        or attrs.get("job_id")
+        or payload.get("id"),
         parent_job_id=attrs.get("parentJobId") or attrs.get("parent_job_id"),
         type=attrs.get("jobType") or attrs.get("type"),
         state=attrs.get("state"),
@@ -43,9 +48,10 @@ def job_from_mapping(payload: dict[str, Any], source: str = "api") -> Job:
         start_time=attrs.get("startTime") or attrs.get("start_time"),
         end_time=attrs.get("endTime") or attrs.get("end_time"),
         elapsed_seconds=attrs.get("elapsedSeconds") or attrs.get("elapsed_seconds"),
-        kilobytes=attrs.get("kilobytes") or attrs.get("kb"),
-        files=attrs.get("files"),
+        kilobytes=attrs.get("kilobytesTransferred") or attrs.get("kilobytes") or attrs.get("kb"),
+        files=attrs.get("filesTransferred") or attrs.get("files"),
         percent_complete=attrs.get("percentComplete") or attrs.get("percent_complete"),
+        backup_id=attrs.get("backupId") or attrs.get("backup_id"),
         source=source,
         raw=payload,
     )

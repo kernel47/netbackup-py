@@ -1,10 +1,10 @@
 # netbackup-py
 
-`netbackup-py` provides a modern typed Python wrapper for Veritas NetBackup automation,
-collection, health checks, and reporting. It is intentionally NetBackup-oriented and exposes
-the import package as `nbu`.
+`netbackup-py` provides a modern typed Python REST API wrapper for Veritas NetBackup automation,
+collection, health checks, and reporting. It is intentionally NetBackup-oriented and exposes the
+import package as `nbu`.
 
-The library targets NetBackup 9.x, 10.x, and newer. REST endpoint mappings are centralized in
+The library targets NetBackup 10.0 and newer. REST endpoint mappings are centralized in
 `nbu.version.VersionManager` so deployments can adapt paths as Veritas evolves the OpenAPI
 specification exposed by each master server.
 
@@ -39,10 +39,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Optional SSH and development dependencies:
+Development dependencies:
 
 ```bash
-pip install -r requirements-ssh.txt
 pip install -r requirements-dev.txt
 ```
 
@@ -67,7 +66,11 @@ with NetBackup(
 ) as nb:
     print(nb.ping())
 
-    jobs = nb.list_jobs(start_date="2026-07-01", end_date="2026-07-02", limit=100)
+    jobs = nb.list_jobs(
+        start_date="2026-07-01T00:00:00Z",
+        end_date="2026-07-02T00:00:00Z",
+        limit=100,
+    )
     for job in jobs:
         print(job.job_id, job.client, job.policy, job.status)
 ```
@@ -82,7 +85,11 @@ For day-to-day scripts, use the shorter facade methods:
 
 ```python
 jobs = nb.list_jobs(status=0, policy="linux-prod")
-images = nb.list_images(client="app01", start_date="2026-07-01", end_date="2026-07-02")
+images = nb.list_images(
+    client="app01",
+    start_date="2026-07-01T00:00:00Z",
+    end_date="2026-07-02T00:00:00Z",
+)
 storage = nb.list_storage()
 health = nb.health_report()
 ```
@@ -109,13 +116,11 @@ version = nb.discover_version()
 print(nb.version.current)
 ```
 
-## Collection Modes
+## API Login
 
-Every major service accepts `mode="api"` or `mode="ssh"`.
-
-API mode uses the NetBackup REST API with token login, NetBackup vendor media headers,
-domain-aware authentication, pagination, retries, timeouts, SSL verification configuration,
-and optional proxy settings.
+The client uses the NetBackup REST API with token login, NetBackup vendor media headers,
+domain-aware authentication, pagination, retries, timeouts, SSL verification configuration, and
+optional proxy settings.
 
 For login, NetBackup commonly expects:
 
@@ -143,7 +148,7 @@ configuration, SLP, and storage collections use offset pagination with `page[off
 By default, list methods collect every page that NetBackup returns:
 
 ```python
-jobs = nb.list_jobs(start_date="2026-07-01", end_date="2026-07-02")
+jobs = nb.list_jobs(start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
 images = nb.list_images(client="app01")
 ```
 
@@ -158,7 +163,7 @@ images = nb.list_images(client="app01", limit=500)
 For large environments, stream records instead:
 
 ```python
-for job in nb.iter_jobs(start_date="2026-07-01", end_date="2026-07-02"):
+for job in nb.iter_jobs(start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z"):
     process(job)
 
 for image in nb.iter_images(client="app01", limit=10_000):
@@ -168,9 +173,37 @@ for image in nb.iter_images(client="app01", limit=10_000):
 Streaming still follows NetBackup pagination, but it yields records one by one instead of building
 one large list first. The safest production pattern is to combine streaming with date filters.
 
-SSH mode executes safe read-only NetBackup commands such as `bpdbjobs`, `bppllist`,
-`bpimagelist`, `bpstulist`, `nbemmcmd`, `nbstl`, `nbdeployutil`, `nbcertcmd`, `vmquery`, and
-`nbdiscover`, then normalizes output into the same Pydantic models used by API mode.
+Dates should be ISO 8601 values accepted by the NetBackup API. They are sent as date-time values
+inside the OData filter, for example `startTime ge 2026-07-01T00:00:00Z`.
+
+Jobs default to filtering on `startTime`:
+
+```python
+jobs = nb.list_jobs(
+    start_date="2026-07-01T00:00:00Z",
+    end_date="2026-07-02T00:00:00Z",
+)
+```
+
+You can switch the job date field when needed:
+
+```python
+jobs = nb.list_jobs(
+    date_field="endTime",
+    start_date="2026-07-01T00:00:00Z",
+    end_date="2026-07-02T00:00:00Z",
+)
+```
+
+Every list method that maps to a filterable REST endpoint accepts `filter=` for custom OData:
+
+```python
+jobs = nb.list_jobs(filter="status eq 0 and jobType eq 'BACKUP'", limit=500)
+images = nb.iter_images(filter="scheduleType eq 'FULL'", client="app01")
+policies = nb.list_policies(filter="active eq true")
+```
+
+Custom filters are combined with shortcut arguments using `and`.
 
 ## Services
 
@@ -178,7 +211,7 @@ SSH mode executes safe read-only NetBackup commands such as `bpdbjobs`, `bppllis
 nb.list_jobs(status=0, policy="linux-prod", ignore_child_jobs=True)
 nb.list_policies()
 nb.list_clients()
-nb.list_images(client="app01", start_date="2026-07-01", end_date="2026-07-02")
+nb.list_images(client="app01", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
 nb.list_storage()
 nb.list_slps()
 nb.list_vm_assets()
@@ -199,7 +232,7 @@ nb.slp.get("gold-copy")
 Collectors return `CollectionResult`, which can be converted into index-friendly dictionaries.
 
 ```python
-result = nb.collect("jobs", start_date="2026-07-01", end_date="2026-07-02", mode="api")
+result = nb.collect("jobs", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
 documents = result.to_indexable()
 ```
 
@@ -212,7 +245,10 @@ result = nb.collect("images", client="app01", limit=1000)
 The older fluent collector style is also supported:
 
 ```python
-result = nb.collectors.jobs().collect(start_date="2026-07-01", end_date="2026-07-02")
+result = nb.collectors.jobs().collect(
+    start_date="2026-07-01T00:00:00Z",
+    end_date="2026-07-02T00:00:00Z",
+)
 ```
 
 The output is designed to be easy to send later to Elasticsearch, PostgreSQL, files, dashboards,
@@ -250,6 +286,6 @@ Unsupported features raise `FeatureNotSupportedError` with the required minimum 
 ## Design Notes
 
 NetBackup installations differ by version, installed options, RBAC permissions, and exposed API
-surface. This package therefore keeps endpoint names centralized and parser behavior conservative.
+surface. This package therefore keeps endpoint names centralized and service behavior conservative.
 When adding a feature, check the official Veritas NetBackup API documentation for the exact target
 version and update `nbu/version.py` plus the relevant service/model tests.

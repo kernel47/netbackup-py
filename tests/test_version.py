@@ -9,12 +9,11 @@ def test_version_comparison() -> None:
 
 
 def test_feature_support() -> None:
-    version = VersionManager("9.0")
+    version = VersionManager("10.0")
     assert version.supports("jobs")
-    assert not version.supports("vmware_assets")
+    assert version.supports("vmware_assets")
 
 
 def test_require_unsupported_feature() -> None:
     with pytest.raises(FeatureNotSupportedError):
-        VersionManager("9.0").require("vmware_assets")
-
+        VersionManager("9.0").require("jobs")

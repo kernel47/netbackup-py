@@ -23,6 +23,10 @@ def expr(field: str, operator: str, value: Any) -> str:
     return f"{field} {operator} {quote_value(value)}"
 
 
+def raw_expr(field: str, operator: str, value: Any) -> str:
+    return f"{field} {operator} {value}"
+
+
 def contains(field: str, value: Any) -> str:
     escaped = str(value).replace("'", "''")
     return f"contains({field},'{escaped}')"
@@ -31,4 +35,3 @@ def contains(field: str, value: Any) -> str:
 def combine(*parts: str | None) -> str | None:
     clean = [part for part in parts if part]
     return " and ".join(clean) if clean else None
-

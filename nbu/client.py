@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from nbu.collectors import Collectors
-from nbu.config import CollectionMode, NetBackupConfig
+from nbu.config import NetBackupConfig
 from nbu.services import (
     ClientsService,
     HealthService,
@@ -19,12 +19,11 @@ from nbu.services import (
     VMService,
 )
 from nbu.transport.api import ApiTransport
-from nbu.transport.ssh import SshTransport
 from nbu.version import VersionManager
 
 
 class NetBackup:
-    """Facade for NetBackup API and SSH-backed collection.
+    """Facade for NetBackup REST API collection.
 
     Example:
         nb = NetBackup(
@@ -35,26 +34,25 @@ class NetBackup:
             domain_name="master.company.com",
             version="10.3",
         )
-        jobs = nb.jobs.list(mode="api")
+        jobs = nb.jobs.list()
     """
 
     def __init__(self, config: NetBackupConfig | None = None, **kwargs: Any) -> None:
         self.config = config or NetBackupConfig(**kwargs)
         self.version = VersionManager(self.config.version)
         self.api = ApiTransport(self.config)
-        self.ssh = SshTransport(self.config)
 
-        self.jobs = JobsService(self.config, self.api, self.ssh, self.version)
-        self.policies = PoliciesService(self.config, self.api, self.ssh, self.version)
-        self.clients = ClientsService(self.config, self.api, self.ssh, self.version)
-        self.images = ImagesService(self.config, self.api, self.ssh, self.version)
+        self.jobs = JobsService(self.config, self.api, self.version)
+        self.policies = PoliciesService(self.config, self.api, self.version)
+        self.clients = ClientsService(self.config, self.api, self.version)
+        self.images = ImagesService(self.config, self.api, self.version)
         self.catalog = self.images
-        self.storage = StorageService(self.config, self.api, self.ssh, self.version)
-        self.slp = SLPService(self.config, self.api, self.ssh, self.version)
-        self.vm = VMService(self.config, self.api, self.ssh, self.version)
-        self.health = HealthService(self.config, self.api, self.ssh, self.version)
-        self.licensing = LicensingService(self.config, self.api, self.ssh, self.version)
-        self.security = SecurityService(self.config, self.api, self.ssh, self.version)
+        self.storage = StorageService(self.config, self.api, self.version)
+        self.slp = SLPService(self.config, self.api, self.version)
+        self.vm = VMService(self.config, self.api, self.version)
+        self.health = HealthService(self.config, self.api, self.version)
+        self.licensing = LicensingService(self.config, self.api, self.version)
+        self.security = SecurityService(self.config, self.api, self.version)
         self.collectors = Collectors(self)
 
         for service in (
@@ -98,14 +96,14 @@ class NetBackup:
     def iter_jobs(self, **kwargs: Any):
         return self.jobs.iter(**kwargs)
 
-    def get_job(self, job_id: int | str, *, mode: CollectionMode | None = None):
-        return self.jobs.get(job_id, mode=mode)
+    def get_job(self, job_id: int | str):
+        return self.jobs.get(job_id)
 
     def list_policies(self, **kwargs: Any):
         return self.policies.list(**kwargs)
 
-    def get_policy(self, policy_name: str, *, mode: CollectionMode | None = None):
-        return self.policies.get(policy_name, mode=mode)
+    def get_policy(self, policy_name: str):
+        return self.policies.get(policy_name)
 
     def list_clients(self, **kwargs: Any):
         return self.clients.list(**kwargs)
@@ -116,8 +114,8 @@ class NetBackup:
     def iter_images(self, **kwargs: Any):
         return self.images.iter(**kwargs)
 
-    def list_storage(self, *, mode: CollectionMode | None = None):
-        return [*self.storage.storage_units(mode=mode), *self.storage.disk_pools(mode=mode)]
+    def list_storage(self, **kwargs: Any):
+        return [*self.storage.storage_units(**kwargs), *self.storage.disk_pools(**kwargs)]
 
     def list_slps(self, **kwargs: Any):
         return self.slp.list(**kwargs)

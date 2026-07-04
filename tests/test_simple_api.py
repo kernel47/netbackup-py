@@ -34,11 +34,11 @@ def test_top_level_shortcuts_delegate_to_services() -> None:
         disk_pools=lambda **kwargs: [{"kind": "disk-pool", **kwargs}],
     )
 
-    assert nb.list_jobs(mode="api") == [{"kind": "job", "mode": "api"}]
-    assert nb.list_policies(mode="ssh") == [{"kind": "policy", "mode": "ssh"}]
-    assert nb.list_storage(mode="api") == [
-        {"kind": "storage-unit", "mode": "api"},
-        {"kind": "disk-pool", "mode": "api"},
+    assert nb.list_jobs(limit=5) == [{"kind": "job", "limit": 5}]
+    assert nb.list_policies(name="prod") == [{"kind": "policy", "name": "prod"}]
+    assert nb.list_storage(limit=10) == [
+        {"kind": "storage-unit", "limit": 10},
+        {"kind": "disk-pool", "limit": 10},
     ]
 
     nb.close()
@@ -48,11 +48,11 @@ def test_generic_collector_keeps_old_fluent_usage_simple() -> None:
     nb = NetBackup(master="master.example.com", token="token")
     nb.jobs = SimpleNamespace(list=lambda **kwargs: [{"id": 1, **kwargs}])
 
-    result = nb.collectors.jobs().collect(mode="api", start_date="2026-07-01")
+    result = nb.collectors.jobs().collect(start_date="2026-07-01", filter="status eq 0")
 
     assert result.collector == "jobs"
-    assert result.records == [{"id": 1, "mode": "api", "start_date": "2026-07-01"}]
-    assert result.metadata == {"mode": "api", "start_date": "2026-07-01"}
+    assert result.records == [{"id": 1, "start_date": "2026-07-01", "filter": "status eq 0"}]
+    assert result.metadata == {"start_date": "2026-07-01", "filter": "status eq 0"}
 
     nb.close()
 
@@ -61,10 +61,10 @@ def test_collect_by_name() -> None:
     nb = NetBackup(master="master.example.com", token="token")
     nb.images = SimpleNamespace(list=lambda **kwargs: [{"image_id": "client_1", **kwargs}])
 
-    result = nb.collect("images", mode="api", client="app01")
+    result = nb.collect("images", client="app01")
 
     assert result.collector == "images"
-    assert result.records == [{"image_id": "client_1", "mode": "api", "client": "app01"}]
+    assert result.records == [{"image_id": "client_1", "client": "app01"}]
 
     nb.close()
 

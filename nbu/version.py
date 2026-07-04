@@ -41,17 +41,17 @@ class NetBackupVersion:
 
 
 FEATURE_MIN_VERSION = {
-    "jobs": "9.0",
-    "policies": "9.0",
-    "clients": "9.0",
-    "images": "9.0",
-    "catalog": "9.0",
-    "storage": "9.0",
-    "slp": "9.0",
-    "vmware_assets": "9.1",
-    "health": "9.0",
-    "licensing": "9.0",
-    "security": "9.0",
+    "jobs": "10.0",
+    "policies": "10.0",
+    "clients": "10.0",
+    "images": "10.0",
+    "catalog": "10.0",
+    "storage": "10.0",
+    "slp": "10.0",
+    "vmware_assets": "10.0",
+    "health": "10.0",
+    "licensing": "10.0",
+    "security": "10.0",
 }
 
 
