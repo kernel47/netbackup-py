@@ -1,7 +1,9 @@
 import httpx
+import pytest
 
 from nbu import NetBackup, NetBackupConfig
 from nbu.config import NetBackupConfig as DirectConfig
+from nbu.exceptions import ApiError
 from nbu.services.vm import VMService
 from nbu.transport.api import ApiTransport
 from nbu.version import VersionManager
@@ -115,4 +117,39 @@ def test_resolve_vmware_policy_assets_uses_policy_odata_filter() -> None:
     assert seen["asset_path"] == "/netbackup/asset-service/workloads/vmware/assets"
     assert seen["asset_filter"] == "vcenter eq 'vc01' and tag ne 'no_backup'"
     assert assets[0].name == "app01"
+    nb.close()
+
+
+def test_resolve_vmware_policy_assets_requires_backup_selection_source() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "id": "not-vmware-prod",
+                    "attributes": {
+                        "policyStandard": {
+                            "policyName": "not-vmware-prod",
+                            "policyType": "Standard",
+                            "backupSelections": ["/var"],
+                            "vmwareIntelligentClientSelections": [
+                                {"oDataFilter": "vcenter eq 'vc01'"}
+                            ],
+                        }
+                    },
+                }
+            },
+        )
+
+    nb = NetBackup(
+        config=NetBackupConfig(master="master.example.com", token="abc123", version="11.2"),
+    )
+    nb.api.close()
+    nb.api = ApiTransport(nb.config, transport=httpx.MockTransport(handler))
+    nb.policies.api = nb.api
+    nb.vm.api = nb.api
+
+    with pytest.raises(ApiError, match="does not contain a VMware dynamic selection"):
+        nb.resolve_vmware_policy_assets("not-vmware-prod")
+
     nb.close()

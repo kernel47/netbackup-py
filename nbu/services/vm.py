@@ -79,11 +79,7 @@ class VMService(ServiceBase):
 
     def policy_selections(self, policy_name: str) -> list[VMwareSelection]:
         policy = self._policy_with_vmware_odata(policy_name)
-        raw_selections = [
-            selection
-            for selection in policy.backup_selections
-            if selection.startswith(VMWARE_SELECTION_PREFIX)
-        ]
+        raw_selections = self._vmware_backup_selections(policy.backup_selections)
         odata_filters = policy.vmware_odata_filters
         return [
             parse_vmware_selection(
@@ -112,19 +108,24 @@ class VMService(ServiceBase):
 
     def _policy_odata_filter(self, policy_name: str) -> str:
         policy = self._policy_with_vmware_odata(policy_name)
-        if policy.vmware_odata_filters:
-            return policy.vmware_odata_filters[0]
-        selections = [
-            selection
-            for selection in policy.backup_selections
-            if selection.startswith(VMWARE_SELECTION_PREFIX)
-        ]
-        if selections:
+        selections = self._vmware_backup_selections(policy.backup_selections)
+        if not selections:
+            raise ApiError(f"Policy {policy_name!r} does not contain a VMware dynamic selection")
+        if not policy.vmware_odata_filters:
             raise ApiError(
-                "Policy contains a VMware VIP query but NetBackup did not return an OData filter. "
+                "Policy contains a VMware VIP query in backupSelections but NetBackup did not "
+                "return an OData filter. "
                 "Pass filter=... explicitly or verify X-NetBackup-Include-VMware-Odata-Filter support."
             )
-        raise ApiError(f"Policy {policy_name!r} does not contain a VMware dynamic selection")
+        return policy.vmware_odata_filters[0]
+
+    @staticmethod
+    def _vmware_backup_selections(backup_selections: list[str]) -> list[str]:
+        return [
+            selection
+            for selection in backup_selections
+            if selection.startswith(VMWARE_SELECTION_PREFIX)
+        ]
 
     @staticmethod
     def _asset_params(
