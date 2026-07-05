@@ -161,8 +161,8 @@ Fonctions de collecte:
 | `list_storage()` | Liste storage units et disk pools |
 | `list_slps()` | Liste les SLP |
 | `list_vmware_policy_selections(policy)` | Affiche les selections dynamiques VMware d'une policy |
-| `preview_vmware_policy_clients(policy)` | Preview des VM matchees par une policy VMware |
-| `preview_asset_group(query_filter)` | Preview directe via `/config/preview-asset-group` |
+| `discover_vmware_policy_clients(policy)` | Decouvre les VM matchees par une policy VMware |
+| `start_vmware_test_query(query_filter)` | Lance un test-query VMware direct |
 | `health_report()` | Retourne un rapport de sante simple |
 | `collect(name, **kwargs)` | Collecte generique par nom: `jobs`, `images`, etc. |
 
@@ -352,10 +352,10 @@ vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEq
 ```
 
 Le module utilise `backupSelections` comme source de verite. Il extrait simplement la partie apres
-`filter=` puis appelle `/config/preview-asset-group`:
+`filter=` puis appelle le flux workload VMware:
 
 ```python
-clients = nb.preview_vmware_policy_clients("vmware-policy", limit=500)
+clients = nb.discover_vmware_policy_clients("vmware-policy", limit=500)
 ```
 
 ## Storage
@@ -400,7 +400,7 @@ Recuperer une SLP:
 slp = nb.slp.get("gold-copy")
 ```
 
-## VMware preview
+## VMware test-query
 
 Voir les selections dynamiques VMware d'une policy:
 
@@ -412,16 +412,16 @@ for selection in selections:
     print(selection.query_filter)
 ```
 
-Preview des VM d'une policy VMware:
+Decouverte des VM d'une policy VMware:
 
 ```python
-clients = nb.preview_vmware_policy_clients("vmware-policy", limit=500)
+clients = nb.discover_vmware_policy_clients("vmware-policy", limit=500)
 ```
 
-Appel direct de preview:
+Appel direct du test-query:
 
 ```python
-clients = nb.preview_asset_group(
+query = nb.start_vmware_test_query(
     'vcenter Equal "vc01" and cluster Contains "CL-prod"'
 )
 ```
@@ -431,8 +431,9 @@ Endpoints utilises:
 | Fonction | Endpoint |
 | --- | --- |
 | `list_vmware_policy_selections()` | `/config/policies/{policyName}` |
-| `preview_asset_group()` | `/config/preview-asset-group` |
-| `preview_vmware_policy_clients()` | `/config/policies/{policyName}` puis `/config/preview-asset-group` |
+| `start_vmware_test_query()` | `/config/workloads/vmware/test-query` |
+| `get_vmware_test_query()` | `/config/workloads/vmware/test-query/{testQueryId}` |
+| `discover_vmware_policy_clients()` | `/config/policies/{policyName}` puis workload `test-query` |
 
 ## Health report
 

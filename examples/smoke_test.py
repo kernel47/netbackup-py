@@ -74,10 +74,10 @@ def main() -> None:
                 ],
             )
             show(
-                "preview_vmware_policy_clients",
+                "discover_vmware_policy_clients",
                 [
                     client.model_dump(mode="json")
-                    for client in nb.preview_vmware_policy_clients(policy_name, limit=5)
+                    for client in nb.discover_vmware_policy_clients(policy_name, limit=5)
                 ],
             )
         show("health_report", nb.health_report().model_dump(mode="json"))

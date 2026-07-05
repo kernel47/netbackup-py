@@ -11,3 +11,8 @@ class VMwareSelection(NbuModel):
 class VMwareClient(NbuModel):
     name: str
     id: str | None = None
+
+
+class VMwareTestQuery(NbuModel):
+    test_query_id: str
+    done: bool | None = None

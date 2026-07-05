@@ -5,7 +5,7 @@ from nbu.models.jobs import Job
 from nbu.models.policies import Policy, Schedule
 from nbu.models.slp import SLP, SLPOperation
 from nbu.models.storage import DiskPool, StorageUnit
-from nbu.models.vm import VMwareClient, VMwareSelection
+from nbu.models.vm import VMwareClient, VMwareSelection, VMwareTestQuery
 
 __all__ = [
     "Client",
@@ -22,4 +22,5 @@ __all__ = [
     "StorageUnit",
     "VMwareClient",
     "VMwareSelection",
+    "VMwareTestQuery",
 ]

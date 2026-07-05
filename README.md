@@ -226,7 +226,7 @@ nb.list_image_contents(filter="backupId eq 'app01_1234567890'", limit=100)
 nb.list_storage()
 nb.list_slps()
 nb.list_vmware_policy_selections("vmware-policy")
-nb.preview_vmware_policy_clients("vmware-policy", limit=100)
+nb.discover_vmware_policy_clients("vmware-policy", limit=100)
 nb.health_report()
 ```
 
@@ -249,12 +249,13 @@ policy detail, these selections appear in `backupSelections`, for example:
 vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
 ```
 
-For API-only preview, `backupSelections` is the source of truth. `netbackup-py` extracts the
-VMware query and sends it to the NetBackup preview endpoint, the same behavior used by the UI
-when testing a VMware Intelligent Policy query:
+For API-only discovery, `backupSelections` is the source of truth. `netbackup-py` extracts the
+VMware query and sends it to the NetBackup workload test-query endpoint, the same behavior used by
+the UI when testing a VMware Intelligent Policy query:
 
 ```text
-POST /config/preview-asset-group
+POST /config/workloads/vmware/test-query
+GET  /config/workloads/vmware/test-query/{testQueryId}
 ```
 
 Inspect the dynamic selections on a VMware policy:
@@ -266,16 +267,16 @@ for selection in selections:
     print(selection.query_filter)
 ```
 
-Preview the VMs matched by a VMware policy:
+Discover the VMs matched by a VMware policy:
 
 ```python
-clients = nb.preview_vmware_policy_clients("vmware-policy", limit=500)
+clients = nb.discover_vmware_policy_clients("vmware-policy", limit=500)
 ```
 
-You can also call the preview endpoint directly with a query:
+You can also start the test query directly:
 
 ```python
-clients = nb.preview_asset_group(
+query = nb.start_vmware_test_query(
     'vcenter Equal "vc01" and cluster Contains "CL-prod"'
 )
 ```
@@ -331,7 +332,7 @@ Each model preserves the original source payload in `raw` and marks its collecti
 ```python
 nb.version.current
 nb.version.supports("slp")
-nb.version.supports("vmware_preview")
+nb.version.supports("vmware_test_query")
 ```
 
 Unsupported features raise `FeatureNotSupportedError` with the required minimum version.

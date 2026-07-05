@@ -141,11 +141,14 @@ class NetBackup:
     def list_vmware_policy_selections(self, policy_name: str):
         return self.vm.policy_selections(policy_name)
 
-    def preview_asset_group(self, query_filter: str, **kwargs: Any):
-        return self.vm.preview_asset_group(query_filter, **kwargs)
+    def start_vmware_test_query(self, query_filter: str, **kwargs: Any):
+        return self.vm.start_test_query(query_filter, **kwargs)
 
-    def preview_vmware_policy_clients(self, policy_name: str, **kwargs: Any):
-        return self.vm.preview_policy_clients(policy_name, **kwargs)
+    def get_vmware_test_query(self, test_query_id: str):
+        return self.vm.get_test_query(test_query_id)
+
+    def discover_vmware_policy_clients(self, policy_name: str, **kwargs: Any):
+        return self.vm.discover_policy_clients(policy_name, **kwargs)
 
     def health_report(self, **kwargs: Any):
         return self.health.check_all(**kwargs)

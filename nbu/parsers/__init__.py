@@ -9,7 +9,7 @@ from nbu.parsers.policies import (
 )
 from nbu.parsers.slp import parse_slp
 from nbu.parsers.storage import parse_disk_pool, parse_storage_unit
-from nbu.parsers.vm import parse_preview_client, parse_vmware_selection
+from nbu.parsers.vm import parse_test_query, parse_test_query_clients, parse_vmware_client, parse_vmware_selection
 
 __all__ = [
     "parse_disk_pool",
@@ -22,6 +22,8 @@ __all__ = [
     "parse_slp",
     "parse_storage_unit",
     "parse_unique_policy_client",
-    "parse_preview_client",
+    "parse_test_query",
+    "parse_test_query_clients",
+    "parse_vmware_client",
     "parse_vmware_selection",
 ]

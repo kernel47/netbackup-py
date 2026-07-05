@@ -16,8 +16,8 @@ def test_vmware_selection_is_read_from_backup_selection() -> None:
     assert selection.query_filter == 'vcenter Equal "vc01" and cluster Contains "CL-prod"'
 
 
-def test_preview_vmware_policy_clients_posts_preview_asset_group() -> None:
-    seen: dict[str, object] = {}
+def test_discover_vmware_policy_clients_uses_workload_test_query() -> None:
+    seen: dict[str, object] = {"result_gets": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/netbackup/config/policies/vmware-prod":
@@ -39,15 +39,34 @@ def test_preview_vmware_policy_clients_posts_preview_asset_group() -> None:
                 },
             )
 
-        seen["path"] = request.url.path
-        seen["json"] = request.read().decode()
+        if request.url.path == "/netbackup/config/workloads/vmware/test-query":
+            seen["post_json"] = request.read().decode()
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "id": "query-1",
+                        "attributes": {"testQueryId": "query-1", "isDiscoveryDone": True},
+                    }
+                },
+            )
+
+        seen["result_path"] = request.url.path
+        seen["result_gets"] = int(seen["result_gets"]) + 1
         return httpx.Response(
             200,
             json={
-                "data": [
-                    {"id": "vm-1", "attributes": {"displayName": "app01"}},
-                    {"id": "vm-2", "attributes": {"vmName": "app02"}},
-                ]
+                "data": {
+                    "id": "query-1",
+                    "attributes": {
+                        "testQueryId": "query-1",
+                        "isDiscoveryDone": True,
+                        "discoveredAssets": [
+                            {"id": "vm-1", "attributes": {"displayName": "app01"}},
+                            {"id": "vm-2", "attributes": {"vmName": "app02"}},
+                        ],
+                    },
+                }
             },
         )
 
@@ -59,16 +78,18 @@ def test_preview_vmware_policy_clients_posts_preview_asset_group() -> None:
     nb.policies.api = nb.api
     nb.vm.api = nb.api
 
-    clients = nb.preview_vmware_policy_clients("vmware-prod")
+    clients = nb.discover_vmware_policy_clients("vmware-prod", poll_interval=0)
 
-    assert seen["path"] == "/netbackup/config/preview-asset-group"
-    assert '"type":"vmware"' in str(seen["json"])
-    assert 'vcenter Equal \\"vc01\\" and Tag NotEqual \\"no_backup\\"' in str(seen["json"])
+    assert '"type":"intelligentTestQueryRequest"' in str(seen["post_json"])
+    assert '"testQuery":"vcenter Equal \\"vc01\\" and Tag NotEqual \\"no_backup\\""' in str(
+        seen["post_json"]
+    )
+    assert seen["result_path"] == "/netbackup/config/workloads/vmware/test-query/query-1"
     assert [client.name for client in clients] == ["app01", "app02"]
     nb.close()
 
 
-def test_preview_vmware_policy_clients_requires_vmware_selection() -> None:
+def test_discover_vmware_policy_clients_requires_vmware_selection() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
@@ -95,6 +116,6 @@ def test_preview_vmware_policy_clients_requires_vmware_selection() -> None:
     nb.vm.api = nb.api
 
     with pytest.raises(ApiError, match="does not contain a VMware dynamic selection"):
-        nb.preview_vmware_policy_clients("linux-prod")
+        nb.discover_vmware_policy_clients("linux-prod")
 
     nb.close()
