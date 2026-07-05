@@ -48,6 +48,8 @@ class Collectors:
                 "jobs": self.client.list_jobs,
                 "policies": self.client.list_policies,
                 "clients": self.client.list_clients,
+                "policy_clients": self.client.list_policy_clients,
+                "protected_clients": self.client.list_protected_clients,
                 "images": self.client.list_images,
                 "storage": self.client.list_storage,
                 "slp": self.client.list_slps,
@@ -69,6 +71,12 @@ class Collectors:
 
     def clients(self) -> Collector:
         return self.get("clients")
+
+    def policy_clients(self) -> Collector:
+        return self.get("policy_clients")
+
+    def protected_clients(self) -> Collector:
+        return self.get("protected_clients")
 
     def images(self) -> Collector:
         return self.get("images")

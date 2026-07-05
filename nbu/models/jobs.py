@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import Field
 
@@ -26,32 +25,3 @@ class Job(NbuModel):
     files: int | None = None
     percent_complete: int | None = None
     backup_id: str | None = None
-
-
-def job_from_mapping(payload: dict[str, Any], source: str = "api") -> Job:
-    attrs = payload.get("attributes", payload)
-    return Job(
-        id=attrs.get("jobId")
-        or attrs.get("jobid")
-        or attrs.get("id")
-        or attrs.get("job_id")
-        or payload.get("id"),
-        parent_job_id=attrs.get("parentJobId") or attrs.get("parent_job_id"),
-        type=attrs.get("jobType") or attrs.get("type"),
-        state=attrs.get("state"),
-        status=attrs.get("status"),
-        status_description=attrs.get("statusDescription") or attrs.get("status_description"),
-        policy=attrs.get("policyName") or attrs.get("policy_name") or attrs.get("policy"),
-        client=attrs.get("clientName") or attrs.get("client_name") or attrs.get("client"),
-        schedule=attrs.get("scheduleName") or attrs.get("schedule_name") or attrs.get("schedule"),
-        storage_unit=attrs.get("storageUnit") or attrs.get("storage_unit"),
-        start_time=attrs.get("startTime") or attrs.get("start_time"),
-        end_time=attrs.get("endTime") or attrs.get("end_time"),
-        elapsed_seconds=attrs.get("elapsedSeconds") or attrs.get("elapsed_seconds"),
-        kilobytes=attrs.get("kilobytesTransferred") or attrs.get("kilobytes") or attrs.get("kb"),
-        files=attrs.get("filesTransferred") or attrs.get("files"),
-        percent_complete=attrs.get("percentComplete") or attrs.get("percent_complete"),
-        backup_id=attrs.get("backupId") or attrs.get("backup_id"),
-        source=source,
-        raw=payload,
-    )

@@ -151,7 +151,9 @@ Fonctions de collecte:
 | `iter_images()` | Stream les images une par une |
 | `list_policies()` | Liste les policies |
 | `get_policy(policy_name)` | Recupere une policy precise |
-| `list_clients()` | Liste les hosts/clients |
+| `list_clients()` | Liste les hosts connus via `/config/hosts` |
+| `list_policy_clients()` | Liste les clients proteges depuis les details de policies |
+| `list_protected_clients()` | Alias de `list_policy_clients()` |
 | `list_storage()` | Liste storage units et disk pools |
 | `list_slps()` | Liste les SLP |
 | `list_vm_assets()` | Liste les assets VMware |
@@ -258,6 +260,15 @@ Lister toutes les policies:
 policies = nb.list_policies()
 ```
 
+La liste des policies retourne un resume. Selon la documentation NetBackup, les clients ne sont
+pas forcement presents dans cette reponse. Les clients se trouvent dans le detail d'une policy.
+
+Lister les policies avec leurs details:
+
+```python
+policies = nb.list_policies(include_details=True)
+```
+
 Chercher une policy par nom:
 
 ```python
@@ -272,7 +283,10 @@ policy = nb.get_policy("linux-prod")
 
 ## Clients
 
-Lister les clients/hosts:
+Il faut distinguer deux inventaires.
+
+`list_clients()` interroge `/config/hosts`. Cela donne les hosts connus par NetBackup, mais ce
+n'est pas forcement la liste des clients reellement proteges par les policies.
 
 ```python
 clients = nb.list_clients()
@@ -282,6 +296,29 @@ Filtrer par nom:
 
 ```python
 clients = nb.list_clients(name="app")
+```
+
+Pour avoir les clients proteges par les policies classiques, le module parcourt les policies,
+appelle le detail de chaque policy, puis lit l'attribut `clients`:
+
+```python
+clients = nb.list_policy_clients()
+
+for client in clients:
+    print(client.name, client.policies)
+```
+
+`list_protected_clients()` est un alias:
+
+```python
+clients = nb.list_protected_clients()
+```
+
+Pour VMware, ce n'est pas une liste de clients classique dans une policy. Les VM viennent de
+vCenter, de requetes ou de selections dynamiques. Il faut donc utiliser les assets VMware:
+
+```python
+vm_assets = nb.list_vm_assets()
 ```
 
 ## Storage
@@ -412,6 +449,41 @@ C'est le mode recommande pour les gros environnements.
 
 Le module envoie aussi `page[limit]` selon `page_limit` dans la config.
 
+### Utiliser le module derriere votre propre API
+
+NetBackup ne fournit pas toujours un total fiable. Selon l'endpoint, `meta.pagination.total` peut
+etre absent. Il faut donc paginer avec un token de page suivante plutot qu'avec un nombre total.
+
+Le transport expose `get_collection_page()` pour ce cas:
+
+```python
+page = nb.api.get_collection_page(
+    "/catalog/images",
+    params={"filter": "clientName eq 'app01'"},
+    pagination="offset",
+    page_token=request.args.get("next"),
+)
+
+response = {
+    "items": page.items,
+    "next": page.next_token,
+    "total": page.total,
+}
+```
+
+Pour les jobs, utilisez `pagination="cursor"` car NetBackup utilise `page[after]`:
+
+```python
+page = nb.api.get_collection_page(
+    "/admin/jobs",
+    pagination="cursor",
+    page_token=request.args.get("next"),
+)
+```
+
+Si `total` vaut `None`, votre API doit retourner `next` et laisser le client continuer tant que
+`next` existe. C'est le comportement le plus fiable pour NetBackup.
+
 ## Filtres custom
 
 Les endpoints NetBackup utilisent des filtres OData.
@@ -476,6 +548,8 @@ nb.collect("jobs")
 nb.collect("images")
 nb.collect("policies")
 nb.collect("clients")
+nb.collect("policy_clients")
+nb.collect("protected_clients")
 nb.collect("storage")
 nb.collect("slp")
 nb.collect("vm")
@@ -520,6 +594,29 @@ Convertir en dict JSON-friendly:
 ```python
 payload = job.model_dump(mode="json")
 ```
+
+## Parsers REST modifiables
+
+La normalisation des reponses NetBackup est isolee dans `nbu/parsers/`.
+
+Fichiers principaux:
+
+- `nbu/parsers/jobs.py`
+- `nbu/parsers/images.py`
+- `nbu/parsers/policies.py`
+- `nbu/parsers/clients.py`
+- `nbu/parsers/storage.py`
+- `nbu/parsers/slp.py`
+- `nbu/parsers/vm.py`
+
+Si votre master NetBackup retourne une variante de schema, modifiez le parser concerne sans
+toucher au transport HTTP ni aux services.
+
+Point important pour les policies:
+
+- `parse_policy_summary()` parse la reponse de `/config/policies/`.
+- `parse_policy_detail()` parse la reponse de `/config/policies/{policyName}`.
+- `parse_protected_clients()` construit la liste des clients depuis les details des policies.
 
 ## Configuration avancee
 
@@ -599,4 +696,3 @@ with NetBackup.from_env() as nb:
 - Utiliser `limit=` pour tester avant de lancer une collecte complete.
 - Garder `raw` si vous voulez auditer exactement la reponse NetBackup.
 - Forcer `api_version=` seulement si la detection par `version=` ne correspond pas a votre master.
-

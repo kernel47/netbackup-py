@@ -108,6 +108,12 @@ class NetBackup:
     def list_clients(self, **kwargs: Any):
         return self.clients.list(**kwargs)
 
+    def list_policy_clients(self, **kwargs: Any):
+        return self.policies.clients(**kwargs)
+
+    def list_protected_clients(self, **kwargs: Any):
+        return self.list_policy_clients(**kwargs)
+
     def list_images(self, **kwargs: Any):
         return self.images.list(**kwargs)
 

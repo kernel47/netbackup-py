@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from nbu.filters import combine, expr, raw_expr
-from nbu.models.images import Image, image_from_mapping
+from nbu.models.images import Image
+from nbu.parsers.images import parse_image
 from nbu.services.base import ServiceBase
 
 
@@ -47,4 +48,4 @@ class ImagesService(ServiceBase):
         )
         params = self._drop_none({"filter": filter_value})
         for item in self.api.iter_collection(self.version.endpoint("images"), params, limit=limit):
-            yield image_from_mapping(item)
+            yield parse_image(item)

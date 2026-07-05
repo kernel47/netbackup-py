@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
@@ -12,6 +13,14 @@ from nbu.config import NetBackupConfig
 from nbu.exceptions import ApiError, AuthenticationError, AuthorizationError, NotFoundError, TimeoutError
 
 PaginationMode = Literal["offset", "cursor"]
+
+
+@dataclass(frozen=True)
+class CollectionPage:
+    items: list[dict[str, Any]]
+    next_token: str | None = None
+    total: int | None = None
+    raw: dict[str, Any] | None = None
 
 
 class ApiTransport:
@@ -224,6 +233,26 @@ class ApiTransport:
             seen_offsets.add(next_cursor)
             query["page[after]" if pagination == "cursor" else "page[offset]"] = next_cursor
 
+    def get_collection_page(
+        self,
+        path: str,
+        params: dict[str, Any] | None = None,
+        *,
+        pagination: PaginationMode = "offset",
+        page_token: str | int | None = None,
+    ) -> CollectionPage:
+        query = dict(params or {})
+        query.setdefault("page[limit]", self.config.page_limit)
+        if page_token is not None:
+            query["page[after]" if pagination == "cursor" else "page[offset]"] = page_token
+        data = self.request("GET", path, params=query)
+        return CollectionPage(
+            items=self._extract_items(data),
+            next_token=self._next_offset(data, pagination=pagination),
+            total=self._total_count(data),
+            raw=data,
+        )
+
     def _media_type(self) -> str:
         return f"application/vnd.netbackup+json;version={self.config.api_version}"
 
@@ -255,4 +284,17 @@ class ApiTransport:
             param = "page[after]=" if pagination == "cursor" else "page[offset]="
             if param in href:
                 return href.split(param, 1)[1].split("&", 1)[0]
+        return None
+
+    @staticmethod
+    def _total_count(data: dict[str, Any]) -> int | None:
+        meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+        pagination_meta = meta.get("pagination") if isinstance(meta.get("pagination"), dict) else {}
+        for key in ("total", "count", "totalRecords", "totalResults"):
+            value = pagination_meta.get(key)
+            if value is not None:
+                try:
+                    return int(value)
+                except (TypeError, ValueError):
+                    return None
         return None

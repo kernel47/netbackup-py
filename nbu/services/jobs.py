@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from nbu.filters import combine, expr, raw_expr
-from nbu.models.jobs import Job, job_from_mapping
+from nbu.models.jobs import Job
+from nbu.parsers.jobs import parse_job
 from nbu.services.base import ServiceBase
 
 JOB_DATE_FIELDS = {"startTime", "endTime", "lastUpdateTime"}
@@ -77,7 +78,7 @@ class JobsService(ServiceBase):
             pagination="cursor",
             limit=api_limit,
         ):
-            job = job_from_mapping(item)
+            job = parse_job(item)
             if ignore_child_jobs and job.parent_job_id:
                 continue
             yielded += 1
@@ -87,4 +88,4 @@ class JobsService(ServiceBase):
 
     def get(self, job_id: int | str) -> Job:
         self.version.require("jobs")
-        return job_from_mapping(self.api.request("GET", self.version.endpoint("job", job_id=job_id)))
+        return parse_job(self.api.request("GET", self.version.endpoint("job", job_id=job_id)))

@@ -143,6 +143,9 @@ Paginated collection calls automatically send `page[limit]` and follow the offic
 metadata until all pages are collected. Jobs use cursor pagination with `page[after]`; catalog,
 configuration, SLP, and storage collections use offset pagination with `page[offset]`.
 
+If you build your own API on top of this package, use `nb.api.get_collection_page(...)` and expose
+`next_token` to callers. NetBackup does not always return a total count, so `total` is optional.
+
 ## Large Collections
 
 By default, list methods collect every page that NetBackup returns:
@@ -210,7 +213,9 @@ Custom filters are combined with shortcut arguments using `and`.
 ```python
 nb.list_jobs(status=0, policy="linux-prod", ignore_child_jobs=True)
 nb.list_policies()
-nb.list_clients()
+nb.list_policies(include_details=True)
+nb.list_clients()          # hosts known by /config/hosts
+nb.list_policy_clients()   # protected clients from policy details
 nb.list_images(client="app01", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
 nb.list_storage()
 nb.list_slps()
@@ -222,6 +227,7 @@ The service objects are still available when you need more specific calls:
 
 ```python
 nb.jobs.get(1234)
+nb.policies.clients()
 nb.storage.storage_units()
 nb.storage.disk_pools()
 nb.slp.get("gold-copy")

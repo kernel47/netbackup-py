@@ -1,3 +1,3 @@
-from nbu.transport.api import ApiTransport
+from nbu.transport.api import ApiTransport, CollectionPage
 
-__all__ = ["ApiTransport"]
+__all__ = ["ApiTransport", "CollectionPage"]

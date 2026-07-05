@@ -151,6 +151,29 @@ def test_iter_collection_streams_records() -> None:
     assert list(transport.iter_collection("/catalog/images")) == [{"id": "1"}, {"id": "2"}]
 
 
+def test_get_collection_page_exposes_next_token_and_optional_total() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params.get("page[offset]") == "200"
+        return httpx.Response(
+            200,
+            json={
+                "data": [{"id": "3"}],
+                "meta": {"pagination": {"next": "300", "total": 900}},
+            },
+        )
+
+    transport = ApiTransport(
+        NetBackupConfig(master="master.example.com", token="abc123", page_limit=100),
+        transport=httpx.MockTransport(handler),
+    )
+
+    page = transport.get_collection_page("/catalog/images", page_token=200)
+
+    assert page.items == [{"id": "3"}]
+    assert page.next_token == "300"
+    assert page.total == 900
+
+
 def test_request_text_supports_official_ping_response() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["accept"] == "text/vnd.netbackup+plain;version=14.0"
