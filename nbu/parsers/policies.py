@@ -39,20 +39,6 @@ def _backup_selections(value: Any) -> list[str]:
     return selections
 
 
-def _vmware_odata_filters_from_response(attrs: dict[str, Any]) -> list[str]:
-    filters: list[str] = []
-    for value in list_value(
-        first_value(attrs, "vmwareIntelligentClientSelections", "vmware_intelligent_client_selections")
-    ):
-        if isinstance(value, str) and value:
-            filters.append(value)
-        elif isinstance(value, dict):
-            filter_value = first_value(value, "filter", "odataFilter", "oDataFilter", "query")
-            if filter_value:
-                filters.append(str(filter_value))
-    return filters
-
-
 def parse_schedule(payload: dict[str, Any], source: str = "api") -> Schedule:
     return Schedule(
         name=first_value(payload, "name", "scheduleName"),
@@ -98,7 +84,6 @@ def parse_policy_detail(payload: dict[str, Any], source: str = "api") -> Policy:
         clients=clients,
         schedules=schedules,
         backup_selections=_backup_selections(first_value(attrs, "backupSelections", "backup_selections")),
-        vmware_odata_filters=_vmware_odata_filters_from_response(attrs),
         retention=attrs.get("retention"),
         storage=first_value(attrs, "storage", "storageUnit"),
         raw=payload,

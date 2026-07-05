@@ -59,12 +59,6 @@ def main() -> None:
         if slps:
             show("slp.get", nb.slp.get(slps[0].name).model_dump(mode="json"))
 
-        show("list_asset_workloads", nb.list_asset_workloads(limit=5))
-        show(
-            "list_asset_schemas vmware asset",
-            nb.list_asset_schemas(workload="vmware", filter="schemaName eq 'asset'", limit=5),
-        )
-        show("list_vm_assets", [asset.model_dump(mode="json") for asset in nb.list_vm_assets(limit=5)])
         vmware_policies = [
             policy
             for policy in policies_with_details
@@ -80,10 +74,10 @@ def main() -> None:
                 ],
             )
             show(
-                "resolve_vmware_policy_assets",
+                "preview_vmware_policy_clients",
                 [
-                    asset.model_dump(mode="json")
-                    for asset in nb.resolve_vmware_policy_assets(policy_name, limit=5)
+                    client.model_dump(mode="json")
+                    for client in nb.preview_vmware_policy_clients(policy_name, limit=5)
                 ],
             )
         show("health_report", nb.health_report().model_dump(mode="json"))

@@ -53,7 +53,6 @@ class Collectors:
                 "images": self.client.list_images,
                 "storage": self.client.list_storage,
                 "slp": self.client.list_slps,
-                "vm": self.client.list_vm_assets,
                 "health": self.client.health_report,
             }[name]
         except KeyError as exc:
@@ -86,9 +85,6 @@ class Collectors:
 
     def slp(self) -> Collector:
         return self.get("slp")
-
-    def vm(self) -> Collector:
-        return self.get("vm")
 
     def health(self) -> Collector:
         return self.get("health")

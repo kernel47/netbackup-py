@@ -225,11 +225,8 @@ nb.get_image("app01_1234567890")
 nb.list_image_contents(filter="backupId eq 'app01_1234567890'", limit=100)
 nb.list_storage()
 nb.list_slps()
-nb.list_vm_assets()
-nb.list_asset_workloads()
-nb.list_asset_schemas(workload="vmware", filter="schemaName eq 'asset'")
 nb.list_vmware_policy_selections("vmware-policy")
-nb.resolve_vmware_policy_assets("vmware-policy", limit=100)
+nb.preview_vmware_policy_clients("vmware-policy", limit=100)
 nb.health_report()
 ```
 
@@ -243,7 +240,7 @@ nb.storage.disk_pools()
 nb.slp.get("gold-copy")
 ```
 
-## VMware Assets
+## VMware Preview
 
 NetBackup VMware policies can use dynamic VIP selections instead of a static client list. In the
 policy detail, these selections appear in `backupSelections`, for example:
@@ -252,20 +249,12 @@ policy detail, these selections appear in `backupSelections`, for example:
 vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
 ```
 
-For API-only resolution, `backupSelections` is the source of truth. `netbackup-py` first asks the
-policy endpoint for NetBackup's optional OData translation, and if the master does not return it,
-the library converts the common VIP syntax locally before querying Asset Service:
+For API-only preview, `backupSelections` is the source of truth. `netbackup-py` extracts the
+VMware query and sends it to the NetBackup preview endpoint, the same behavior used by the UI
+when testing a VMware Intelligent Policy query:
 
 ```text
-GET /asset-service/workloads/vmware/assets
-```
-
-List VMware assets directly:
-
-```python
-assets = nb.list_vm_assets(filter="vcenter eq 'vc01'", limit=100)
-for asset in assets:
-    print(asset.name, asset.uuid, asset.vcenter, asset.cluster)
+POST /config/preview-asset-group
 ```
 
 Inspect the dynamic selections on a VMware policy:
@@ -274,27 +263,22 @@ Inspect the dynamic selections on a VMware policy:
 selections = nb.list_vmware_policy_selections("vmware-policy")
 for selection in selections:
     print(selection.raw)
-    print(selection.odata_filter)
+    print(selection.query_filter)
 ```
 
-Resolve the VMs/assets matched by a VMware policy:
+Preview the VMs matched by a VMware policy:
 
 ```python
-assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500, no_cache=True)
+clients = nb.preview_vmware_policy_clients("vmware-policy", limit=500)
 ```
 
-If your VIP query uses operators or fields that the local converter does not know, pass a custom
-Asset Service filter:
+You can also call the preview endpoint directly with a query:
 
 ```python
-assets = nb.resolve_vmware_policy_assets(
-    "vmware-policy",
-    filter="vcenter eq 'vc01' and tag ne 'no_backup'",
+clients = nb.preview_asset_group(
+    'vcenter Equal "vc01" and cluster Contains "CL-prod"'
 )
 ```
-
-Asset Service uses offset pagination. The wrapper follows `meta.pagination.next` or
-`links.next` until NetBackup reports no next page, and `limit=` stops collection early.
 
 ## Collectors
 
@@ -335,7 +319,7 @@ All normalized objects use Pydantic v2:
 - `StorageUnit`
 - `DiskPool`
 - `SLP`
-- `VMAsset`
+- `VMwareClient`
 - `HealthCheck`
 - `HealthReport`
 
@@ -347,7 +331,7 @@ Each model preserves the original source payload in `raw` and marks its collecti
 ```python
 nb.version.current
 nb.version.supports("slp")
-nb.version.supports("vmware_assets")
+nb.version.supports("vmware_preview")
 ```
 
 Unsupported features raise `FeatureNotSupportedError` with the required minimum version.

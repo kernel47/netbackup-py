@@ -11,7 +11,7 @@ def test_version_comparison() -> None:
 def test_feature_support() -> None:
     version = VersionManager("10.0")
     assert version.supports("jobs")
-    assert version.supports("vmware_assets")
+    assert version.supports("vmware_preview")
 
 
 def test_require_unsupported_feature() -> None:
