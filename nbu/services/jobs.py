@@ -89,3 +89,10 @@ class JobsService(ServiceBase):
     def get(self, job_id: int | str) -> Job:
         self.version.require("jobs")
         return parse_job(self.api.request("GET", self.version.endpoint("job", job_id=job_id)))
+
+    def progress_logs(self, job_id: int | str, *, limit: int | None = None) -> list[dict]:
+        self.version.require("jobs")
+        return self.api.get_collection(
+            self.version.endpoint("job_progress_logs", job_id=job_id),
+            limit=limit,
+        )

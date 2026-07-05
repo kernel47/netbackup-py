@@ -49,3 +49,34 @@ class ImagesService(ServiceBase):
         params = self._drop_none({"filter": filter_value})
         for item in self.api.iter_collection(self.version.endpoint("images"), params, limit=limit):
             yield parse_image(item)
+
+    def get(self, backup_id: str) -> Image:
+        self.version.require("images")
+        return parse_image(
+            self.api.request("GET", self.version.endpoint("image", backup_id=backup_id))
+        )
+
+    def contents(
+        self,
+        *,
+        filter: str,
+        sort: str | None = None,
+        all_copies: bool = False,
+        limit: int | None = None,
+    ) -> list[dict]:
+        self.version.require("images")
+        headers = {"X-NetBackup-All-Copies": "true"} if all_copies else None
+        params = self._drop_none({"filter": filter, "sort": sort})
+        return self.api.get_collection(
+            self.version.endpoint("image_contents"),
+            params,
+            limit=limit,
+            headers=headers,
+        )
+
+    def contents_result(self, request_id: str) -> list[dict]:
+        self.version.require("images")
+        return self.api.get_collection(
+            self.version.endpoint("image_contents_request", request_id=request_id),
+            paginate=False,
+        )

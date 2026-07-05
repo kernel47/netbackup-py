@@ -145,6 +145,9 @@ configuration, SLP, and storage collections use offset pagination with `page[off
 
 If you build your own API on top of this package, use `nb.api.get_collection_page(...)` and expose
 `next_token` to callers. NetBackup does not always return a total count, so `total` is optional.
+The client also supports per-area media versions through `api_versions`; this is used for 11.x
+policy endpoints where `config_policies.yaml` advertises a different media version than admin or
+catalog.
 
 ## Large Collections
 
@@ -212,11 +215,14 @@ Custom filters are combined with shortcut arguments using `and`.
 
 ```python
 nb.list_jobs(status=0, policy="linux-prod", ignore_child_jobs=True)
+nb.get_job_progress_logs(1234, limit=100)
 nb.list_policies()
 nb.list_policies(include_details=True)
 nb.list_clients()          # hosts known by /config/hosts
 nb.list_policy_clients()   # protected clients from policy details
 nb.list_images(client="app01", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
+nb.get_image("app01_1234567890")
+nb.list_image_contents(filter="backupId eq 'app01_1234567890'", limit=100)
 nb.list_storage()
 nb.list_slps()
 nb.list_vm_assets()
@@ -295,3 +301,27 @@ NetBackup installations differ by version, installed options, RBAC permissions, 
 surface. This package therefore keeps endpoint names centralized and service behavior conservative.
 When adding a feature, check the official Veritas NetBackup API documentation for the exact target
 version and update `nbu/version.py` plus the relevant service/model tests.
+
+
+## Veritas DOC 
+
+source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/catalog/catalog.yaml
+
+/catalog/images
+/catalog/image-contents 
+/catalog/images/{backupId}
+/catalog/images/contents/{requestId}
+
+
+source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/config/config.yaml
+
+/config/policies/
+/config/policies/{policyName}
+/config/policies/{policyName}/copy
+/config/unique-policy-clients
+
+source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/admin/admin.yaml
+
+/admin/jobs
+/admin/jobs/{jobId}
+/admin/jobs/{jobId}/progress-logs

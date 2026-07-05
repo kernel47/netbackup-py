@@ -147,8 +147,12 @@ Fonctions de collecte:
 | `list_jobs()` | Liste les jobs NetBackup |
 | `iter_jobs()` | Stream les jobs un par un |
 | `get_job(job_id)` | Recupere un job precis |
+| `get_job_progress_logs(job_id)` | Recupere les progress logs d'un job |
 | `list_images()` | Liste les images du catalogue |
 | `iter_images()` | Stream les images une par une |
+| `get_image(backup_id)` | Recupere le detail d'une image |
+| `list_image_contents(filter=...)` | Liste le contenu catalogue d'une image |
+| `get_image_contents_result(request_id)` | Recupere le resultat d'une requete image contents |
 | `list_policies()` | Liste les policies |
 | `get_policy(policy_name)` | Recupere une policy precise |
 | `list_clients()` | Liste les hosts connus via `/config/hosts` |
@@ -225,6 +229,12 @@ job = nb.get_job(12345)
 print(job.raw)
 ```
 
+Recuperer les progress logs d'un job:
+
+```python
+logs = nb.get_job_progress_logs(12345, limit=100)
+```
+
 ## Images catalogue
 
 Lister les images:
@@ -250,6 +260,21 @@ Filtrer par policy:
 
 ```python
 images = nb.list_images(policy="linux-prod")
+```
+
+Recuperer le detail d'une image:
+
+```python
+image = nb.get_image("app01_1234567890")
+```
+
+Lister le contenu catalogue d'une image:
+
+```python
+contents = nb.list_image_contents(
+    filter="backupId eq 'app01_1234567890'",
+    limit=100,
+)
 ```
 
 ## Policies
@@ -299,7 +324,8 @@ clients = nb.list_clients(name="app")
 ```
 
 Pour avoir les clients proteges par les policies classiques, le module parcourt les policies,
-appelle le detail de chaque policy, puis lit l'attribut `clients`:
+utilise d'abord `/config/unique-policy-clients`, puis retombe sur le detail des policies si cet
+endpoint n'est pas disponible:
 
 ```python
 clients = nb.list_policy_clients()
@@ -448,6 +474,26 @@ C'est le mode recommande pour les gros environnements.
 | SLP `/config/slps` | Offset avec `page[offset]` |
 
 Le module envoie aussi `page[limit]` selon `page_limit` dans la config.
+
+## Endpoints verifies
+
+Les endpoints suivants ont ete verifies dans les YAML Veritas 10.0 et 11.2 quand disponibles.
+
+| Endpoint | Pagination | Params principaux | Fonction |
+| --- | --- | --- | --- |
+| `/admin/jobs` | cursor `page[after]` | `filter`, `page[limit]`, `sort` | `list_jobs`, `iter_jobs` |
+| `/admin/jobs/{jobId}` | aucune | `jobId` path | `get_job` |
+| `/admin/jobs/{jobId}/progress-logs` | offset `page[offset]` | `page[limit]` | `get_job_progress_logs` |
+| `/catalog/images` | offset `page[offset]` | `filter`, `page[limit]`, `fieldset[image]` en 11.2 | `list_images`, `iter_images` |
+| `/catalog/images/{backupId}` | aucune | `backupId` path | `get_image` |
+| `/catalog/image-contents` | offset `page[offset]` | `filter`, `sort`, `X-NetBackup-All-Copies` | `list_image_contents` |
+| `/catalog/images/contents/{requestId}` | aucune | `requestId` path | `get_image_contents_result` |
+| `/config/policies/` | offset `page[offset]` | `filter`, `sort`, `page[limit]` | `list_policies` |
+| `/config/policies/{policyName}` | aucune | `policyName` path | `get_policy` |
+| `/config/unique-policy-clients` | offset `page[offset]` | `filter` sur `id` ou `policyTypes` | `list_policy_clients` |
+
+Note version API: en 11.2, `admin` et `catalog` utilisent la media version `14.0`, tandis que
+`config_policies.yaml` annonce `12.0`. Le module gere ce cas avec `api_versions`.
 
 ### Utiliser le module derriere votre propre API
 

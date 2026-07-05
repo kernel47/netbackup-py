@@ -18,6 +18,7 @@ class NetBackupConfig(BaseModel):
     token: SecretStr | None = None
     version: str | None = None
     api_version: str | None = None
+    api_versions: dict[str, str] = Field(default_factory=dict)
     page_limit: int = 100
     authorization_scheme: str = ""
     base_url: str | None = None
@@ -62,6 +63,7 @@ class NetBackupConfig(BaseModel):
     @model_validator(mode="after")
     def infer_api_version(self) -> "NetBackupConfig":
         if self.api_version:
+            self._infer_service_api_versions()
             return self
         if self.version:
             major_minor = ".".join(self.version.split(".")[:2])
@@ -76,6 +78,7 @@ class NetBackupConfig(BaseModel):
                 "11.2": "14.0",
             }.get(major_minor)
         self.api_version = self.api_version or "7.0"
+        self._infer_service_api_versions()
         return self
 
     @property
@@ -83,3 +86,18 @@ class NetBackupConfig(BaseModel):
         if self.base_url:
             return self.base_url.rstrip("/")
         return f"https://{self.master}/netbackup"
+
+    def service_api_version(self, area: str | None = None) -> str:
+        if not area:
+            return self.api_version or "7.0"
+        return self.api_versions.get(area, self.api_version or "7.0")
+
+    def _infer_service_api_versions(self) -> None:
+        if not self.version:
+            return
+        major_minor = ".".join(self.version.split(".")[:2])
+        defaults = {
+            "11.1": {"config_policies": "12.0"},
+            "11.2": {"config_policies": "12.0"},
+        }.get(major_minor, {})
+        self.api_versions = defaults | self.api_versions

@@ -99,6 +99,9 @@ class NetBackup:
     def get_job(self, job_id: int | str):
         return self.jobs.get(job_id)
 
+    def get_job_progress_logs(self, job_id: int | str, **kwargs: Any):
+        return self.jobs.progress_logs(job_id, **kwargs)
+
     def list_policies(self, **kwargs: Any):
         return self.policies.list(**kwargs)
 
@@ -119,6 +122,15 @@ class NetBackup:
 
     def iter_images(self, **kwargs: Any):
         return self.images.iter(**kwargs)
+
+    def get_image(self, backup_id: str):
+        return self.images.get(backup_id)
+
+    def list_image_contents(self, **kwargs: Any):
+        return self.images.contents(**kwargs)
+
+    def get_image_contents_result(self, request_id: str):
+        return self.images.contents_result(request_id)
 
     def list_storage(self, **kwargs: Any):
         return [*self.storage.storage_units(**kwargs), *self.storage.disk_pools(**kwargs)]

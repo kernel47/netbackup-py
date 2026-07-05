@@ -17,6 +17,7 @@ def main() -> None:
 
         if jobs:
             show("get_job", nb.get_job(jobs[0].job_id).model_dump(mode="json"))
+            show("get_job_progress_logs", nb.get_job_progress_logs(jobs[0].job_id, limit=5))
 
         show("iter_jobs", [job.model_dump(mode="json") for job in nb.iter_jobs(limit=5)])
 
@@ -42,6 +43,12 @@ def main() -> None:
         images = nb.list_images(limit=5)
         show("list_images", [image.model_dump(mode="json") for image in images])
         show("iter_images", [image.model_dump(mode="json") for image in nb.iter_images(limit=5)])
+        if images and images[0].backup_id:
+            show("get_image", nb.get_image(images[0].backup_id).model_dump(mode="json"))
+            show(
+                "list_image_contents",
+                nb.list_image_contents(filter=f"backupId eq '{images[0].backup_id}'", limit=5),
+            )
 
         show("list_storage", [item.model_dump(mode="json") for item in nb.list_storage(limit=5)])
         show("storage_units", [item.model_dump(mode="json") for item in nb.storage.storage_units(limit=5)])
@@ -61,4 +68,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

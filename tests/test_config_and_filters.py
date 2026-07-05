@@ -12,6 +12,8 @@ def test_api_version_is_inferred_for_official_doc_versions() -> None:
     assert NetBackupConfig(master="m", version="11.1").api_version == "14.0"
     assert NetBackupConfig(master="m", version="11.2").api_version == "14.0"
     assert NetBackupConfig(master="m").api_version == "7.0"
+    assert NetBackupConfig(master="m", version="11.2").service_api_version("config_policies") == "12.0"
+    assert NetBackupConfig(master="m", version="11.2").service_api_version("catalog") == "14.0"
 
 
 def test_odata_filter_helpers() -> None:

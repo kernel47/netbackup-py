@@ -172,14 +172,28 @@ class ApiTransport:
         paginate: bool = True,
         pagination: PaginationMode = "offset",
         limit: int | None = None,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         if not paginate:
-            data = self.request("GET", path, params=params)
+            data = self.request(
+                "GET",
+                path,
+                params=params,
+                headers=self._request_headers(api_version=api_version, headers=headers),
+            )
             items = self._extract_items(data)
             return items[:limit] if limit is not None else items
 
         items: list[dict[str, Any]] = []
-        for page in self.iter_collection_pages(path, params, pagination=pagination, limit=limit):
+        for page in self.iter_collection_pages(
+            path,
+            params,
+            pagination=pagination,
+            limit=limit,
+            api_version=api_version,
+            headers=headers,
+        ):
             remaining = None if limit is None else limit - len(items)
             items.extend(page if remaining is None else page[:remaining])
             if limit is not None and len(items) >= limit:
@@ -193,9 +207,18 @@ class ApiTransport:
         *,
         pagination: PaginationMode = "offset",
         limit: int | None = None,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
     ):
         yielded = 0
-        for page in self.iter_collection_pages(path, params, pagination=pagination, limit=limit):
+        for page in self.iter_collection_pages(
+            path,
+            params,
+            pagination=pagination,
+            limit=limit,
+            api_version=api_version,
+            headers=headers,
+        ):
             for item in page:
                 if limit is not None and yielded >= limit:
                     return
@@ -209,6 +232,8 @@ class ApiTransport:
         *,
         pagination: PaginationMode = "offset",
         limit: int | None = None,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
     ):
         query = dict(params or {})
         query.setdefault("page[limit]", self.config.page_limit)
@@ -216,7 +241,12 @@ class ApiTransport:
         yielded = 0
 
         while True:
-            data = self.request("GET", path, params=query)
+            data = self.request(
+                "GET",
+                path,
+                params=query,
+                headers=self._request_headers(api_version=api_version, headers=headers),
+            )
             page = self._extract_items(data)
             if limit is not None:
                 remaining = limit - yielded
@@ -240,12 +270,19 @@ class ApiTransport:
         *,
         pagination: PaginationMode = "offset",
         page_token: str | int | None = None,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
     ) -> CollectionPage:
         query = dict(params or {})
         query.setdefault("page[limit]", self.config.page_limit)
         if page_token is not None:
             query["page[after]" if pagination == "cursor" else "page[offset]"] = page_token
-        data = self.request("GET", path, params=query)
+        data = self.request(
+            "GET",
+            path,
+            params=query,
+            headers=self._request_headers(api_version=api_version, headers=headers),
+        )
         return CollectionPage(
             items=self._extract_items(data),
             next_token=self._next_offset(data, pagination=pagination),
@@ -255,6 +292,25 @@ class ApiTransport:
 
     def _media_type(self) -> str:
         return f"application/vnd.netbackup+json;version={self.config.api_version}"
+
+    @staticmethod
+    def _media_type_for(api_version: str) -> str:
+        return f"application/vnd.netbackup+json;version={api_version}"
+
+    def _version_headers(self, api_version: str | None = None) -> dict[str, str] | None:
+        if not api_version:
+            return None
+        return {"Accept": self._media_type_for(api_version)}
+
+    def _request_headers(
+        self,
+        *,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> dict[str, str] | None:
+        merged = self._version_headers(api_version) or {}
+        merged.update(headers or {})
+        return merged or None
 
     def _authorization_value(self, token: str) -> str:
         scheme = self.config.authorization_scheme.strip()

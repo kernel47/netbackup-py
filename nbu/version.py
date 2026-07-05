@@ -63,9 +63,13 @@ ENDPOINTS = {
     "job": "/admin/jobs/{job_id}",
     "policies": "/config/policies/",
     "policy": "/config/policies/{policy_name}",
+    "unique_policy_clients": "/config/unique-policy-clients",
     "clients": "/config/hosts",
     "client": "/config/hosts/{client_name}",
     "images": "/catalog/images",
+    "image": "/catalog/images/{backup_id}",
+    "image_contents": "/catalog/image-contents",
+    "image_contents_request": "/catalog/images/contents/{request_id}",
     "storage_units": "/storage/storage-units",
     "disk_pools": "/storage/disk-pools",
     "slp": "/config/slps",
@@ -74,6 +78,8 @@ ENDPOINTS = {
     "health": "/admin/health",
     "licenses": "/admin/licenses",
     "certificates": "/security/certificates",
+    "job_progress_logs": "/admin/jobs/{job_id}/progress-logs",
+    "policy_copy": "/config/policies/{policy_name}/copy",
 }
 
 
