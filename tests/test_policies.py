@@ -189,3 +189,31 @@ def test_policy_detail_parser_keeps_vmware_odata_filters() -> None:
         'vmware:/filter=vcenter Equal "vc01" and Tag NotEqual "no_backup"'
     ]
     assert policy.vmware_odata_filters == ["vcenter eq 'vc01' and tag ne 'no_backup'"]
+
+
+def test_policy_detail_parser_flattens_backup_selection_objects() -> None:
+    policy = parse_policy_detail(
+        {
+            "data": {
+                "id": "mixed-prod",
+                "attributes": {
+                    "policyStandard": {
+                        "policyName": "mixed-prod",
+                        "policyType": "Standard",
+                        "backupSelections": [
+                            {"selections": ["/etc", "/var"]},
+                            {"selection": "/opt"},
+                            'vmware:/filter=vcenter Equal "vc01"',
+                        ],
+                    }
+                },
+            }
+        }
+    )
+
+    assert policy.backup_selections == [
+        "/etc",
+        "/var",
+        "/opt",
+        'vmware:/filter=vcenter Equal "vc01"',
+    ]

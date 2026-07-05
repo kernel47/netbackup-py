@@ -24,8 +24,19 @@ def _client_name(value: Any) -> str | None:
     return str(value) if value not in {None, ""} else None
 
 
-def _strings(value: Any) -> list[str]:
-    return [str(item) for item in list_value(value) if item not in {None, ""}]
+def _backup_selections(value: Any) -> list[str]:
+    selections: list[str] = []
+    for item in list_value(value):
+        if item is None or item == "":
+            continue
+        if isinstance(item, dict):
+            nested = first_value(item, "selections", "selection", "backupSelections", "backup_selection")
+            selections.extend(_backup_selections(nested))
+        elif isinstance(item, list):
+            selections.extend(_backup_selections(item))
+        else:
+            selections.append(str(item))
+    return selections
 
 
 def _vmware_odata_filters(attrs: dict[str, Any]) -> list[str]:
@@ -86,7 +97,7 @@ def parse_policy_detail(payload: dict[str, Any], source: str = "api") -> Policy:
         active=attrs.get("active"),
         clients=clients,
         schedules=schedules,
-        backup_selections=_strings(first_value(attrs, "backupSelections", "backup_selections")),
+        backup_selections=_backup_selections(first_value(attrs, "backupSelections", "backup_selections")),
         vmware_odata_filters=_vmware_odata_filters(attrs),
         retention=attrs.get("retention"),
         storage=first_value(attrs, "storage", "storageUnit"),
