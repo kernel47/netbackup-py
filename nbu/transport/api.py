@@ -146,6 +146,31 @@ class ApiTransport:
             raise last_error
         raise ApiError("REST API text request failed")
 
+    def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        authenticated: bool = True,
+        api_version: str | None = None,
+        headers: dict[str, str] | None = None,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Call any NetBackup JSON endpoint with the managed session."""
+        request_headers = self._request_headers(api_version=api_version, headers=headers) or {}
+        if kwargs.get("json") is not None:
+            request_headers.setdefault(
+                "Content-Type",
+                self._media_type_for(api_version or self.config.api_version or "7.0"),
+            )
+        return self.request(
+            method.upper(),
+            self._normalize_path(path),
+            authenticated=authenticated,
+            headers=request_headers,
+            **kwargs,
+        )
+
     @staticmethod
     def _handle_response(response: httpx.Response) -> dict[str, Any]:
         if response.status_code in {401, 403}:
@@ -311,6 +336,10 @@ class ApiTransport:
         merged = self._version_headers(api_version) or {}
         merged.update(headers or {})
         return merged or None
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        return path if path.startswith("/") else f"/{path}"
 
     def _authorization_value(self, token: str) -> str:
         scheme = self.config.authorization_scheme.strip()

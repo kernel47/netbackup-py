@@ -137,6 +137,9 @@ Fonctions generales:
 | --- | --- |
 | `login()` | Fait le login API et stocke le token |
 | `ping()` | Teste `/ping` sur le master NetBackup |
+| `api_request(method, path, ...)` | Appelle un endpoint REST NetBackup directement |
+| `api_get(path, params=...)` | Appel direct GET avec params libres |
+| `api_post(path, json=...)` | Appel direct POST avec body libre |
 | `discover_version()` | Essaie de detecter la version NetBackup via l'API |
 | `close()` | Ferme le client HTTP |
 
@@ -165,6 +168,68 @@ Fonctions de collecte:
 | `start_vmware_test_query(query_filter)` | Lance un test-query VMware direct |
 | `health_report()` | Retourne un rapport de sante simple |
 | `collect(name, **kwargs)` | Collecte generique par nom: `jobs`, `images`, etc. |
+
+## Appels API directs
+
+Si une fonction haut niveau ne marche pas encore pour votre environnement, vous pouvez appeler
+n'importe quel endpoint NetBackup directement. Le module garde l'authentification, le token,
+les retries, le timeout, le proxy, le SSL et les headers NetBackup.
+
+GET direct:
+
+```python
+from nbu import NetBackup
+
+with NetBackup.from_env() as nb:
+    data = nb.api_get(
+        "/config/workloads/vmware/test-query/query-1",
+        params={"include": "assets"},
+    )
+    print(data)
+```
+
+POST direct avec votre body exact:
+
+```python
+body = {
+    "data": {
+        "type": "intelligentTestQueryRequest",
+        "attributes": {
+            "testQuery": "vcenter Equal 'vc01' and cluster Contains 'CL-prod'",
+            "discoveryHost": "media01",
+            "snapshotMethod": "disabled",
+            "streamingAttribute": False,
+        },
+    }
+}
+
+with NetBackup.from_env() as nb:
+    result = nb.api_post(
+        "/config/workloads/vmware/test-query",
+        json=body,
+        api_version="14.0",
+    )
+    print(result)
+```
+
+Pour un autre verbe HTTP:
+
+```python
+result = nb.api_request(
+    "PUT",
+    "/config/example/endpoint",
+    json={"data": {"attributes": {"enabled": True}}},
+)
+```
+
+`path` peut etre donne avec ou sans `/` au debut. Pour forcer les headers:
+
+```python
+data = nb.api_get(
+    "/config/policies",
+    headers={"Accept": "application/vnd.netbackup+json;version=12.0"},
+)
+```
 
 ## Jobs
 

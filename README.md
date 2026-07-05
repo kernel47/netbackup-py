@@ -240,6 +240,41 @@ nb.storage.disk_pools()
 nb.slp.get("gold-copy")
 ```
 
+## Direct API Calls
+
+When you need to test an endpoint exactly as seen in the NetBackup Web UI or Swagger, use the raw
+helpers. They reuse the same login token, retries, timeout, SSL settings, proxy settings, and
+NetBackup media headers as the high-level services:
+
+```python
+result = nb.api_get(
+    "/config/workloads/vmware/test-query/query-1",
+    params={"include": "assets"},
+)
+```
+
+POST with your own JSON body:
+
+```python
+body = {
+    "data": {
+        "type": "intelligentTestQueryRequest",
+        "attributes": {
+            "testQuery": "vcenter Equal 'vc01' and cluster Contains 'CL-prod'",
+            "discoveryHost": "media01",
+        },
+    }
+}
+
+result = nb.api_post(
+    "/config/workloads/vmware/test-query",
+    json=body,
+    api_version="14.0",
+)
+```
+
+Use `api_request(method, path, params=..., json=..., headers=...)` for any other HTTP method.
+
 ## VMware Preview
 
 NetBackup VMware policies can use dynamic VIP selections instead of a static client list. In the

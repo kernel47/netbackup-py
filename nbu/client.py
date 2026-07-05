@@ -90,6 +90,81 @@ class NetBackup:
             headers={"Accept": f"text/vnd.netbackup+plain;version={self.config.api_version}"},
         )
 
+    def api_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: Any | None = None,
+        data: Any | None = None,
+        headers: dict[str, str] | None = None,
+        api_version: str | None = None,
+        authenticated: bool = True,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Call any NetBackup JSON endpoint with raw params/body."""
+        request_kwargs: dict[str, Any] = {}
+        if params is not None:
+            request_kwargs["params"] = params
+        if json is not None:
+            request_kwargs["json"] = json
+        if data is not None:
+            request_kwargs["data"] = data
+        request_kwargs.update(kwargs)
+        return self.api.call(
+            method,
+            path,
+            authenticated=authenticated,
+            api_version=api_version,
+            headers=headers,
+            **request_kwargs,
+        )
+
+    def api_get(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        api_version: str | None = None,
+        authenticated: bool = True,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        return self.api_request(
+            "GET",
+            path,
+            params=params,
+            headers=headers,
+            api_version=api_version,
+            authenticated=authenticated,
+            **kwargs,
+        )
+
+    def api_post(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: Any | None = None,
+        data: Any | None = None,
+        headers: dict[str, str] | None = None,
+        api_version: str | None = None,
+        authenticated: bool = True,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        return self.api_request(
+            "POST",
+            path,
+            params=params,
+            json=json,
+            data=data,
+            headers=headers,
+            api_version=api_version,
+            authenticated=authenticated,
+            **kwargs,
+        )
+
     def list_jobs(self, **kwargs: Any):
         return self.jobs.list(**kwargs)
 
