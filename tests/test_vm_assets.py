@@ -4,6 +4,7 @@ import pytest
 from nbu import NetBackup, NetBackupConfig
 from nbu.config import NetBackupConfig as DirectConfig
 from nbu.exceptions import ApiError
+from nbu.parsers.vm import parse_vmware_selection, vip_filter_to_odata
 from nbu.services.vm import VMService
 from nbu.transport.api import ApiTransport
 from nbu.version import VersionManager
@@ -116,6 +117,67 @@ def test_resolve_vmware_policy_assets_uses_policy_odata_filter() -> None:
     assert seen["policy_header"] == "true"
     assert seen["asset_path"] == "/netbackup/asset-service/workloads/vmware/assets"
     assert seen["asset_filter"] == "vcenter eq 'vc01' and tag ne 'no_backup'"
+    assert assets[0].name == "app01"
+    nb.close()
+
+
+def test_vmware_vip_filter_is_converted_to_odata() -> None:
+    vip_filter = 'vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"'
+
+    assert vip_filter_to_odata(vip_filter) == (
+        "vcenter eq 'vc01' and contains(cluster,'CL-prod') and Tag ne 'no_backup'"
+    )
+    selection = parse_vmware_selection(f"vmware:/filter={vip_filter}")
+
+    assert selection.filter == vip_filter
+    assert selection.odata_filter == (
+        "vcenter eq 'vc01' and contains(cluster,'CL-prod') and Tag ne 'no_backup'"
+    )
+
+
+def test_resolve_vmware_policy_assets_converts_backup_selection_when_odata_is_missing() -> None:
+    seen: dict[str, str | None] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/netbackup/config/policies/vmware-prod":
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "id": "vmware-prod",
+                        "attributes": {
+                            "policyVMware": {
+                                "policyName": "vmware-prod",
+                                "policyType": "VMware",
+                                "backupSelections": [
+                                    'vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod"'
+                                ],
+                            }
+                        },
+                    }
+                },
+            )
+
+        seen["asset_filter"] = request.url.params.get("filter")
+        return httpx.Response(
+            200,
+            json={
+                "data": [{"id": "vm-1", "attributes": {"displayName": "app01"}}],
+                "meta": {"pagination": {"hasNext": False}},
+            },
+        )
+
+    nb = NetBackup(
+        config=NetBackupConfig(master="master.example.com", token="abc123", version="11.2"),
+    )
+    nb.api.close()
+    nb.api = ApiTransport(nb.config, transport=httpx.MockTransport(handler))
+    nb.policies.api = nb.api
+    nb.vm.api = nb.api
+
+    assets = nb.resolve_vmware_policy_assets("vmware-prod")
+
+    assert seen["asset_filter"] == "vcenter eq 'vc01' and contains(cluster,'CL-prod')"
     assert assets[0].name == "app01"
     nb.close()
 

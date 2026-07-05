@@ -357,8 +357,9 @@ Pour une policy VMware dynamique, la selection peut etre dans `backupSelections`
 vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
 ```
 
-Le module peut demander a NetBackup le filtre OData equivalent, puis interroger Asset Service pour
-retrouver les assets/VM qui matchent:
+Le module utilise `backupSelections` comme source de verite. Il demande aussi a NetBackup le filtre
+OData equivalent si le master le fournit; sinon il convertit localement les operateurs VMware VIP
+courants avant d'interroger Asset Service:
 
 ```python
 assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500, no_cache=True)
@@ -454,7 +455,8 @@ Resoudre les assets d'une policy VMware:
 assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500)
 ```
 
-Si NetBackup ne retourne pas `vmwareIntelligentClientSelections`, passez le filtre OData vous-meme:
+Si votre requete VIP utilise un operateur ou un champ non gere par le convertisseur local, passez
+le filtre OData vous-meme:
 
 ```python
 assets = nb.resolve_vmware_policy_assets(

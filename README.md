@@ -252,9 +252,9 @@ policy detail, these selections appear in `backupSelections`, for example:
 vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
 ```
 
-For API-only resolution, `netbackup-py` asks the policy endpoint for the equivalent OData filter
-using the NetBackup header `X-NetBackup-Include-VMware-Odata-Filter: true`, then queries Asset
-Service:
+For API-only resolution, `backupSelections` is the source of truth. `netbackup-py` first asks the
+policy endpoint for NetBackup's optional OData translation, and if the master does not return it,
+the library converts the common VIP syntax locally before querying Asset Service:
 
 ```text
 GET /asset-service/workloads/vmware/assets
@@ -283,7 +283,8 @@ Resolve the VMs/assets matched by a VMware policy:
 assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500, no_cache=True)
 ```
 
-If the master does not return an OData filter for the policy, pass a custom Asset Service filter:
+If your VIP query uses operators or fields that the local converter does not know, pass a custom
+Asset Service filter:
 
 ```python
 assets = nb.resolve_vmware_policy_assets(

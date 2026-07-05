@@ -107,17 +107,16 @@ class VMService(ServiceBase):
         return self.client.policies.get(policy_name, include_vmware_odata_filter=True)
 
     def _policy_odata_filter(self, policy_name: str) -> str:
-        policy = self._policy_with_vmware_odata(policy_name)
-        selections = self._vmware_backup_selections(policy.backup_selections)
+        selections = self.policy_selections(policy_name)
         if not selections:
             raise ApiError(f"Policy {policy_name!r} does not contain a VMware dynamic selection")
-        if not policy.vmware_odata_filters:
+        first_selection = selections[0]
+        if not first_selection.odata_filter:
             raise ApiError(
-                "Policy contains a VMware VIP query in backupSelections but NetBackup did not "
-                "return an OData filter. "
-                "Pass filter=... explicitly or verify X-NetBackup-Include-VMware-Odata-Filter support."
+                "Policy contains a VMware VIP query in backupSelections but it could not be converted "
+                "to an Asset Service OData filter. Pass filter=... explicitly."
             )
-        return policy.vmware_odata_filters[0]
+        return first_selection.odata_filter
 
     @staticmethod
     def _vmware_backup_selections(backup_selections: list[str]) -> list[str]:
