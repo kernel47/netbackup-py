@@ -24,6 +24,24 @@ def _client_name(value: Any) -> str | None:
     return str(value) if value not in {None, ""} else None
 
 
+def _strings(value: Any) -> list[str]:
+    return [str(item) for item in list_value(value) if item not in {None, ""}]
+
+
+def _vmware_odata_filters(attrs: dict[str, Any]) -> list[str]:
+    filters: list[str] = []
+    for value in list_value(
+        first_value(attrs, "vmwareIntelligentClientSelections", "vmware_intelligent_client_selections")
+    ):
+        if isinstance(value, str) and value:
+            filters.append(value)
+        elif isinstance(value, dict):
+            filter_value = first_value(value, "filter", "odataFilter", "oDataFilter", "query")
+            if filter_value:
+                filters.append(str(filter_value))
+    return filters
+
+
 def parse_schedule(payload: dict[str, Any], source: str = "api") -> Schedule:
     return Schedule(
         name=first_value(payload, "name", "scheduleName"),
@@ -68,10 +86,8 @@ def parse_policy_detail(payload: dict[str, Any], source: str = "api") -> Policy:
         active=attrs.get("active"),
         clients=clients,
         schedules=schedules,
-        backup_selections=[
-            str(selection)
-            for selection in list_value(first_value(attrs, "backupSelections", "backup_selections"))
-        ],
+        backup_selections=_strings(first_value(attrs, "backupSelections", "backup_selections")),
+        vmware_odata_filters=_vmware_odata_filters(attrs),
         retention=attrs.get("retention"),
         storage=first_value(attrs, "storage", "storageUnit"),
         raw=payload,

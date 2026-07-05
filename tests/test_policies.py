@@ -162,3 +162,30 @@ def test_policy_detail_parser_handles_nested_policy_schema_clients() -> None:
     assert policy.clients == ["app01", "app02"]
     assert policy.schedules[0].name == "full"
     assert policy.backup_selections == ["/var"]
+
+
+def test_policy_detail_parser_keeps_vmware_odata_filters() -> None:
+    policy = parse_policy_detail(
+        {
+            "data": {
+                "id": "vmware-prod",
+                "attributes": {
+                    "policyVMware": {
+                        "policyName": "vmware-prod",
+                        "policyType": "VMware",
+                        "backupSelections": [
+                            'vmware:/filter=vcenter Equal "vc01" and Tag NotEqual "no_backup"'
+                        ],
+                        "vmwareIntelligentClientSelections": [
+                            {"oDataFilter": "vcenter eq 'vc01' and tag ne 'no_backup'"}
+                        ],
+                    }
+                },
+            }
+        }
+    )
+
+    assert policy.backup_selections == [
+        'vmware:/filter=vcenter Equal "vc01" and Tag NotEqual "no_backup"'
+    ]
+    assert policy.vmware_odata_filters == ["vcenter eq 'vc01' and tag ne 'no_backup'"]

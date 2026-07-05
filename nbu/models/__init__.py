@@ -5,7 +5,7 @@ from nbu.models.jobs import Job
 from nbu.models.policies import Policy, Schedule
 from nbu.models.slp import SLP, SLPOperation
 from nbu.models.storage import DiskPool, StorageUnit
-from nbu.models.vm import VMAsset
+from nbu.models.vm import VMAsset, VMwareSelection
 
 __all__ = [
     "Client",
@@ -21,5 +21,5 @@ __all__ = [
     "Severity",
     "StorageUnit",
     "VMAsset",
+    "VMwareSelection",
 ]
-

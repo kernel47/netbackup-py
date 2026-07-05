@@ -161,6 +161,10 @@ Fonctions de collecte:
 | `list_storage()` | Liste storage units et disk pools |
 | `list_slps()` | Liste les SLP |
 | `list_vm_assets()` | Liste les assets VMware |
+| `list_asset_workloads()` | Liste les workloads Asset Service |
+| `list_asset_schemas()` | Liste les schemas Asset Service, dont les champs filtrables |
+| `list_vmware_policy_selections(policy)` | Affiche les selections dynamiques VMware d'une policy |
+| `resolve_vmware_policy_assets(policy)` | Resout les assets VMware d'une policy via Asset Service |
 | `health_report()` | Retourne un rapport de sante simple |
 | `collect(name, **kwargs)` | Collecte generique par nom: `jobs`, `images`, etc. |
 
@@ -347,6 +351,19 @@ vCenter, de requetes ou de selections dynamiques. Il faut donc utiliser les asse
 vm_assets = nb.list_vm_assets()
 ```
 
+Pour une policy VMware dynamique, la selection peut etre dans `backupSelections`:
+
+```text
+vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
+```
+
+Le module peut demander a NetBackup le filtre OData equivalent, puis interroger Asset Service pour
+retrouver les assets/VM qui matchent:
+
+```python
+assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500, no_cache=True)
+```
+
 ## Storage
 
 Tout lister:
@@ -391,6 +408,18 @@ slp = nb.slp.get("gold-copy")
 
 ## VMware assets
 
+Lister les workloads connus par Asset Service:
+
+```python
+workloads = nb.list_asset_workloads()
+```
+
+Voir le schema des assets VMware, utile pour connaitre les champs filtrables:
+
+```python
+schemas = nb.list_asset_schemas(workload="vmware", filter="schemaName eq 'asset'")
+```
+
 Lister les assets VMware:
 
 ```python
@@ -402,6 +431,46 @@ Limiter le nombre de resultats:
 ```python
 assets = nb.list_vm_assets(limit=500)
 ```
+
+Filtrer avec OData:
+
+```python
+assets = nb.list_vm_assets(filter="vcenter eq 'vc01' and tag ne 'no_backup'")
+```
+
+Voir les selections dynamiques VMware d'une policy:
+
+```python
+selections = nb.list_vmware_policy_selections("vmware-policy")
+
+for selection in selections:
+    print(selection.raw)
+    print(selection.odata_filter)
+```
+
+Resoudre les assets d'une policy VMware:
+
+```python
+assets = nb.resolve_vmware_policy_assets("vmware-policy", limit=500)
+```
+
+Si NetBackup ne retourne pas `vmwareIntelligentClientSelections`, passez le filtre OData vous-meme:
+
+```python
+assets = nb.resolve_vmware_policy_assets(
+    "vmware-policy",
+    filter="vcenter eq 'vc01' and tag ne 'no_backup'",
+)
+```
+
+Endpoints utilises:
+
+| Fonction | Endpoint |
+| --- | --- |
+| `list_asset_workloads()` | `/asset-service/workloads` |
+| `list_asset_schemas()` | `/asset-service/workloads/{workload}/schemas` |
+| `list_vm_assets()` | `/asset-service/workloads/vmware/assets` |
+| `resolve_vmware_policy_assets()` | `/config/policies/{policyName}` puis `/asset-service/workloads/vmware/assets` |
 
 ## Health report
 

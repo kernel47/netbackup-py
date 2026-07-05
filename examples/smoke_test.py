@@ -59,7 +59,33 @@ def main() -> None:
         if slps:
             show("slp.get", nb.slp.get(slps[0].name).model_dump(mode="json"))
 
+        show("list_asset_workloads", nb.list_asset_workloads(limit=5))
+        show(
+            "list_asset_schemas vmware asset",
+            nb.list_asset_schemas(workload="vmware", filter="schemaName eq 'asset'", limit=5),
+        )
         show("list_vm_assets", [asset.model_dump(mode="json") for asset in nb.list_vm_assets(limit=5)])
+        vmware_policies = [
+            policy
+            for policy in policies_with_details
+            if (policy.policy_type or "").lower() == "vmware"
+        ]
+        if vmware_policies:
+            policy_name = vmware_policies[0].name
+            show(
+                "list_vmware_policy_selections",
+                [
+                    selection.model_dump(mode="json")
+                    for selection in nb.list_vmware_policy_selections(policy_name)
+                ],
+            )
+            show(
+                "resolve_vmware_policy_assets",
+                [
+                    asset.model_dump(mode="json")
+                    for asset in nb.resolve_vmware_policy_assets(policy_name, limit=5)
+                ],
+            )
         show("health_report", nb.health_report().model_dump(mode="json"))
 
         collected = nb.collect("jobs", limit=5)

@@ -22,5 +22,6 @@ class Policy(NbuModel):
     clients: list[str] = Field(default_factory=list)
     schedules: list[Schedule] = Field(default_factory=list)
     backup_selections: list[str] = Field(default_factory=list)
+    vmware_odata_filters: list[str] = Field(default_factory=list)
     retention: str | int | None = None
     storage: str | None = None

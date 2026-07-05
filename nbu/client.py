@@ -105,8 +105,8 @@ class NetBackup:
     def list_policies(self, **kwargs: Any):
         return self.policies.list(**kwargs)
 
-    def get_policy(self, policy_name: str):
-        return self.policies.get(policy_name)
+    def get_policy(self, policy_name: str, **kwargs: Any):
+        return self.policies.get(policy_name, **kwargs)
 
     def list_clients(self, **kwargs: Any):
         return self.clients.list(**kwargs)
@@ -140,6 +140,21 @@ class NetBackup:
 
     def list_vm_assets(self, **kwargs: Any):
         return self.vm.assets(**kwargs)
+
+    def list_asset_workloads(self, **kwargs: Any):
+        return self.vm.workloads(**kwargs)
+
+    def list_asset_schemas(self, **kwargs: Any):
+        return self.vm.schemas(**kwargs)
+
+    def get_vm_asset(self, asset_id: str, **kwargs: Any):
+        return self.vm.get_asset(asset_id, **kwargs)
+
+    def list_vmware_policy_selections(self, policy_name: str):
+        return self.vm.policy_selections(policy_name)
+
+    def resolve_vmware_policy_assets(self, policy_name: str, **kwargs: Any):
+        return self.vm.resolve_policy_assets(policy_name, **kwargs)
 
     def health_report(self, **kwargs: Any):
         return self.health.check_all(**kwargs)

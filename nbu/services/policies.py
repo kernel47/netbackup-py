@@ -39,14 +39,22 @@ class PoliciesService(ServiceBase):
             return policies
         return [self.get(policy.name) for policy in policies]
 
-    def get(self, policy_name: str) -> Policy:
+    def get(
+        self,
+        policy_name: str,
+        *,
+        include_vmware_odata_filter: bool = False,
+    ) -> Policy:
         self.version.require("policies")
         api_version = self.config.service_api_version("config_policies")
+        headers = {"Accept": f"application/vnd.netbackup+json;version={api_version}"}
+        if include_vmware_odata_filter:
+            headers["X-NetBackup-Include-VMware-Odata-Filter"] = "true"
         return parse_policy_detail(
             self.api.request(
                 "GET",
                 self.version.endpoint("policy", policy_name=policy_name),
-                headers={"Accept": f"application/vnd.netbackup+json;version={api_version}"},
+                headers=headers,
             )
         )
 
