@@ -6,7 +6,7 @@ from nbu.models.base import NbuModel
 
 
 class Image(NbuModel):
-    image_id: str
+    image_id: str = ""
     backup_id: str | None = None
     client: str | None = None
     policy: str | None = None

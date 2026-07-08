@@ -1,4 +1,5 @@
 import httpx
+import pytest
 
 from nbu.config import NetBackupConfig
 from nbu.services.images import ImagesService
@@ -52,6 +53,30 @@ def test_jobs_filter_uses_cursor_pagination_and_raw_iso_dates() -> None:
     )
 
 
+def test_jobs_filter_supports_recent_hours_and_running_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, str | None] = {}
+    monkeypatch.setattr("nbu.services.jobs._since_last_hours", lambda hours: "2026-07-08T09:00:00Z")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["filter"] = request.url.params.get("filter")
+        return httpx.Response(
+            200,
+            json={"data": [], "meta": {"pagination": {"hasNext": False}}},
+        )
+
+    api = ApiTransport(
+        NetBackupConfig(master="master.example.com", token="abc123", version="10.0"),
+        transport=httpx.MockTransport(handler),
+    )
+    service = JobsService(api.config, api, VersionManager("10.0"))
+
+    service.list(last_hours=1, job_state="running")
+
+    assert seen["filter"] == "startTime ge 2026-07-08T09:00:00Z and state eq 'ACTIVE'"
+
+
 def test_images_filter_uses_offset_pagination_and_custom_filter() -> None:
     seen: dict[str, str | None] = {}
 
@@ -96,6 +121,28 @@ def test_images_filter_uses_offset_pagination_and_custom_filter() -> None:
         "scheduleType eq 'FULL' and clientName eq 'app01' and "
         "backupTime ge 2026-07-01T00:00:00Z"
     )
+
+
+def test_images_filter_supports_recent_hours(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, str | None] = {}
+    monkeypatch.setattr("nbu.services.images._since_last_hours", lambda hours: "2026-07-08T09:00:00Z")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["filter"] = request.url.params.get("filter")
+        return httpx.Response(
+            200,
+            json={"data": [], "meta": {"pagination": {"hasNext": False}}},
+        )
+
+    api = ApiTransport(
+        NetBackupConfig(master="master.example.com", token="abc123", version="10.0"),
+        transport=httpx.MockTransport(handler),
+    )
+    service = ImagesService(api.config, api, VersionManager("10.0"))
+
+    service.list(last_hours=24, policy="linux-prod")
+
+    assert seen["filter"] == "policyName eq 'linux-prod' and backupTime ge 2026-07-08T09:00:00Z"
 
 
 def test_image_detail_and_contents_wrappers() -> None:

@@ -1,9 +1,18 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from nbu.filters import combine, expr, raw_expr
 from nbu.models.images import Image
 from nbu.parsers.images import parse_image
 from nbu.services.base import ServiceBase
+
+
+def _since_last_hours(hours: int | float) -> str:
+    if hours <= 0:
+        raise ValueError("last_hours must be greater than 0")
+    value = datetime.now(UTC) - timedelta(hours=hours)
+    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 class ImagesService(ServiceBase):
@@ -12,6 +21,7 @@ class ImagesService(ServiceBase):
         *,
         client: str | None = None,
         policy: str | None = None,
+        last_hours: int | float | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
         filter: str | None = None,
@@ -21,6 +31,7 @@ class ImagesService(ServiceBase):
             self.iter(
                 client=client,
                 policy=policy,
+                last_hours=last_hours,
                 start_date=start_date,
                 end_date=end_date,
                 filter=filter,
@@ -33,12 +44,15 @@ class ImagesService(ServiceBase):
         *,
         client: str | None = None,
         policy: str | None = None,
+        last_hours: int | float | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
         filter: str | None = None,
         limit: int | None = None,
     ):
         self.version.require("images")
+        if last_hours is not None and start_date is None:
+            start_date = _since_last_hours(last_hours)
         filter_value = combine(
             filter,
             expr("clientName", "eq", client) if client else None,

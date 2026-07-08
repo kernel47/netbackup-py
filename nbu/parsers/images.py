@@ -13,7 +13,7 @@ def parse_image(payload: dict[str, Any], source: str = "api") -> Image:
         or resource_id(payload)
     )
     return Image(
-        image_id=image_id,
+        image_id=str(image_id or ""),
         backup_id=first_value(attrs, "backupId", "backup_id") or resource_id(payload),
         client=first_value(attrs, "clientName", "client_name", "client"),
         policy=first_value(attrs, "policyName", "policy_name", "policy"),

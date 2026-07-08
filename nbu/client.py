@@ -7,16 +7,10 @@ from typing import Any
 from nbu.collectors import Collectors
 from nbu.config import NetBackupConfig
 from nbu.services import (
-    ClientsService,
-    HealthService,
     ImagesService,
     JobsService,
-    LicensingService,
     PoliciesService,
-    SecurityService,
     SLPService,
-    StorageService,
-    VMService,
 )
 from nbu.transport.api import ApiTransport
 from nbu.version import VersionManager
@@ -44,28 +38,16 @@ class NetBackup:
 
         self.jobs = JobsService(self.config, self.api, self.version)
         self.policies = PoliciesService(self.config, self.api, self.version)
-        self.clients = ClientsService(self.config, self.api, self.version)
         self.images = ImagesService(self.config, self.api, self.version)
         self.catalog = self.images
-        self.storage = StorageService(self.config, self.api, self.version)
         self.slp = SLPService(self.config, self.api, self.version)
-        self.vm = VMService(self.config, self.api, self.version)
-        self.health = HealthService(self.config, self.api, self.version)
-        self.licensing = LicensingService(self.config, self.api, self.version)
-        self.security = SecurityService(self.config, self.api, self.version)
         self.collectors = Collectors(self)
 
         for service in (
             self.jobs,
             self.policies,
-            self.clients,
             self.images,
-            self.storage,
             self.slp,
-            self.vm,
-            self.health,
-            self.licensing,
-            self.security,
         ):
             service.attach_client(self)
 
@@ -171,6 +153,21 @@ class NetBackup:
     def iter_jobs(self, **kwargs: Any):
         return self.jobs.iter(**kwargs)
 
+    def list_recent_jobs(self, hours: int | float = 24, **kwargs: Any):
+        return self.jobs.list(last_hours=hours, **kwargs)
+
+    def list_jobs_last_24h(self, **kwargs: Any):
+        return self.list_recent_jobs(24, **kwargs)
+
+    def list_jobs_last_hour(self, **kwargs: Any):
+        return self.list_recent_jobs(1, **kwargs)
+
+    def list_running_jobs(self, **kwargs: Any):
+        return self.jobs.list(job_state="running", **kwargs)
+
+    def list_finished_jobs(self, **kwargs: Any):
+        return self.jobs.list(job_state="done", **kwargs)
+
     def get_job(self, job_id: int | str):
         return self.jobs.get(job_id)
 
@@ -182,9 +179,6 @@ class NetBackup:
 
     def get_policy(self, policy_name: str):
         return self.policies.get(policy_name)
-
-    def list_clients(self, **kwargs: Any):
-        return self.clients.list(**kwargs)
 
     def list_policy_clients(self, **kwargs: Any):
         return self.policies.clients(**kwargs)
@@ -198,6 +192,15 @@ class NetBackup:
     def iter_images(self, **kwargs: Any):
         return self.images.iter(**kwargs)
 
+    def list_recent_images(self, hours: int | float = 24, **kwargs: Any):
+        return self.images.list(last_hours=hours, **kwargs)
+
+    def list_images_last_24h(self, **kwargs: Any):
+        return self.list_recent_images(24, **kwargs)
+
+    def list_images_last_hour(self, **kwargs: Any):
+        return self.list_recent_images(1, **kwargs)
+
     def get_image(self, backup_id: str):
         return self.images.get(backup_id)
 
@@ -207,26 +210,11 @@ class NetBackup:
     def get_image_contents_result(self, request_id: str):
         return self.images.contents_result(request_id)
 
-    def list_storage(self, **kwargs: Any):
-        return [*self.storage.storage_units(**kwargs), *self.storage.disk_pools(**kwargs)]
-
     def list_slps(self, **kwargs: Any):
         return self.slp.list(**kwargs)
 
-    def list_vmware_policy_selections(self, policy_name: str):
-        return self.vm.policy_selections(policy_name)
-
-    def start_vmware_test_query(self, query_filter: str, **kwargs: Any):
-        return self.vm.start_test_query(query_filter, **kwargs)
-
-    def get_vmware_test_query(self, test_query_id: str):
-        return self.vm.get_test_query(test_query_id)
-
-    def discover_vmware_policy_clients(self, policy_name: str, **kwargs: Any):
-        return self.vm.discover_policy_clients(policy_name, **kwargs)
-
-    def health_report(self, **kwargs: Any):
-        return self.health.check_all(**kwargs)
+    def get_slp(self, slp_name: str):
+        return self.slp.get(slp_name)
 
     def collect(self, name: str, **kwargs: Any):
         return self.collectors.collect(name, **kwargs)

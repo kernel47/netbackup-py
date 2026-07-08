@@ -25,10 +25,6 @@ class ApiError(NetBackupError):
     """REST API request failed."""
 
 
-class SshError(NetBackupError):
-    """SSH command execution failed."""
-
-
 class ParsingError(NetBackupError):
     """Command or API response parsing failed."""
 
@@ -39,4 +35,3 @@ class TimeoutError(NetBackupError):
 
 class NotFoundError(NetBackupError):
     """The requested NetBackup resource was not found."""
-

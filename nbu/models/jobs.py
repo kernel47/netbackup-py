@@ -8,7 +8,7 @@ from nbu.models.base import NbuModel
 
 
 class Job(NbuModel):
-    job_id: int | str = Field(alias="id")
+    job_id: int | str = Field(default="", alias="id")
     parent_job_id: int | str | None = None
     type: str | None = None
     state: str | None = None

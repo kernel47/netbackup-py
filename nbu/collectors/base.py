@@ -46,14 +46,17 @@ class Collectors:
         try:
             loader = {
                 "jobs": self.client.list_jobs,
+                "jobs_last_24h": self.client.list_jobs_last_24h,
+                "jobs_last_hour": self.client.list_jobs_last_hour,
+                "running_jobs": self.client.list_running_jobs,
+                "finished_jobs": self.client.list_finished_jobs,
                 "policies": self.client.list_policies,
-                "clients": self.client.list_clients,
                 "policy_clients": self.client.list_policy_clients,
                 "protected_clients": self.client.list_protected_clients,
                 "images": self.client.list_images,
-                "storage": self.client.list_storage,
+                "images_last_24h": self.client.list_images_last_24h,
+                "images_last_hour": self.client.list_images_last_hour,
                 "slp": self.client.list_slps,
-                "health": self.client.health_report,
             }[name]
         except KeyError as exc:
             raise ValueError(f"Unknown collector {name!r}") from exc
@@ -65,11 +68,20 @@ class Collectors:
     def jobs(self) -> Collector:
         return self.get("jobs")
 
+    def jobs_last_24h(self) -> Collector:
+        return self.get("jobs_last_24h")
+
+    def jobs_last_hour(self) -> Collector:
+        return self.get("jobs_last_hour")
+
+    def running_jobs(self) -> Collector:
+        return self.get("running_jobs")
+
+    def finished_jobs(self) -> Collector:
+        return self.get("finished_jobs")
+
     def policies(self) -> Collector:
         return self.get("policies")
-
-    def clients(self) -> Collector:
-        return self.get("clients")
 
     def policy_clients(self) -> Collector:
         return self.get("policy_clients")
@@ -80,11 +92,11 @@ class Collectors:
     def images(self) -> Collector:
         return self.get("images")
 
-    def storage(self) -> Collector:
-        return self.get("storage")
+    def images_last_24h(self) -> Collector:
+        return self.get("images_last_24h")
+
+    def images_last_hour(self) -> Collector:
+        return self.get("images_last_hour")
 
     def slp(self) -> Collector:
         return self.get("slp")
-
-    def health(self) -> Collector:
-        return self.get("health")

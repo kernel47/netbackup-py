@@ -4,6 +4,8 @@ from typing import Any
 
 
 def attributes(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        return {}
     data = payload.get("data")
     if isinstance(data, dict):
         payload = data
@@ -12,6 +14,8 @@ def attributes(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def resource_id(payload: dict[str, Any]) -> Any:
+    if not isinstance(payload, dict):
+        return None
     data = payload.get("data")
     if isinstance(data, dict):
         return data.get("id")
@@ -19,6 +23,8 @@ def resource_id(payload: dict[str, Any]) -> Any:
 
 
 def first_value(mapping: dict[str, Any], *keys: str) -> Any:
+    if not isinstance(mapping, dict):
+        return None
     for key in keys:
         value = mapping.get(key)
         if value is not None and value != "":

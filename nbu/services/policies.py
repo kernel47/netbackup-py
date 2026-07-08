@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from nbu.exceptions import ApiError, NotFoundError
+from nbu.exceptions import NetBackupError
 from nbu.filters import combine, contains
 from nbu.models.clients import Client
 from nbu.models.policies import Policy
+from nbu.models.slp import SLP, SLPOperation
 from nbu.parsers.policies import (
     parse_policy_detail,
     parse_policy_summary,
     parse_protected_clients,
-    parse_unique_policy_client,
 )
+from nbu.parsers.slp import parse_slp
 from nbu.services.base import ServiceBase
 
 
@@ -43,13 +44,15 @@ class PoliciesService(ServiceBase):
         self.version.require("policies")
         api_version = self.config.service_api_version("config_policies")
         headers = {"Accept": f"application/vnd.netbackup+json;version={api_version}"}
-        return parse_policy_detail(
+        policy = parse_policy_detail(
             self.api.request(
                 "GET",
                 self.version.endpoint("policy", policy_name=policy_name),
                 headers=headers,
             )
         )
+        self._enrich_slp(policy)
+        return policy
 
     def clients(
         self,
@@ -59,20 +62,38 @@ class PoliciesService(ServiceBase):
         limit: int | None = None,
     ) -> list[Client]:
         self.version.require("policies")
-        filter_value = combine(filter, contains("id", name) if name else None)
-        params = self._drop_none({"filter": filter_value})
-        api_version = self.config.service_api_version("config_policies")
-        try:
-            return [
-                parse_unique_policy_client(item)
-                for item in self.api.get_collection(
-                    self.version.endpoint("unique_policy_clients"),
-                    params,
-                    limit=limit,
-                    api_version=api_version,
-                )
-            ]
-        except (ApiError, NotFoundError):
-            pass
         policies = self.list(name=name, filter=filter, limit=limit, include_details=True)
         return parse_protected_clients(policies)
+
+    def _get_slp(self, slp_name: str, cache: dict[str, SLP | None]) -> SLP | None:
+        if slp_name not in cache:
+            try:
+                cache[slp_name] = parse_slp(
+                    self.api.request("GET", self.version.endpoint("slp_detail", slp_name=slp_name))
+                )
+            except NetBackupError:
+                cache[slp_name] = None
+        return cache[slp_name]
+
+    @staticmethod
+    def _backup_operation(slp: SLP) -> SLPOperation | None:
+        return next(
+            (operation for operation in slp.operations if operation.operation.upper() == "BACKUP"),
+            slp.operations[0] if slp.operations else None,
+        )
+
+    def _enrich_slp(self, policy: Policy) -> None:
+        cache: dict[str, SLP | None] = {}
+        if policy.storage_is_slp and policy.slp_name:
+            slp = self._get_slp(policy.slp_name, cache)
+            operation = self._backup_operation(slp) if slp else None
+            policy.slp_retention = slp.retention if slp else None
+            policy.slp_operation = operation.model_dump(mode="json") if operation else None
+
+        for schedule in policy.schedules:
+            if not schedule.storage_is_slp or not schedule.slp_name:
+                continue
+            slp = self._get_slp(schedule.slp_name, cache)
+            operation = self._backup_operation(slp) if slp else None
+            schedule.slp_retention = slp.retention if slp else None
+            schedule.slp_operation = operation.model_dump(mode="json") if operation else None

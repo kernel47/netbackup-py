@@ -43,15 +43,9 @@ class NetBackupVersion:
 FEATURE_MIN_VERSION = {
     "jobs": "10.0",
     "policies": "10.0",
-    "clients": "10.0",
     "images": "10.0",
     "catalog": "10.0",
-    "storage": "10.0",
     "slp": "10.0",
-    "vmware_test_query": "10.0",
-    "health": "10.0",
-    "licensing": "10.0",
-    "security": "10.0",
 }
 
 
@@ -63,22 +57,12 @@ ENDPOINTS = {
     "job": "/admin/jobs/{job_id}",
     "policies": "/config/policies/",
     "policy": "/config/policies/{policy_name}",
-    "unique_policy_clients": "/config/unique-policy-clients",
-    "clients": "/config/hosts",
-    "client": "/config/hosts/{client_name}",
     "images": "/catalog/images",
     "image": "/catalog/images/{backup_id}",
     "image_contents": "/catalog/image-contents",
     "image_contents_request": "/catalog/images/contents/{request_id}",
-    "storage_units": "/storage/storage-units",
-    "disk_pools": "/storage/disk-pools",
     "slp": "/config/slps",
     "slp_detail": "/config/slps/{slp_name}",
-    "vmware_test_query": "/config/workloads/vmware/test-query",
-    "vmware_test_query_result": "/config/workloads/vmware/test-query/{test_query_id}",
-    "health": "/admin/health",
-    "licenses": "/admin/licenses",
-    "certificates": "/security/certificates",
     "job_progress_logs": "/admin/jobs/{job_id}/progress-logs",
     "policy_copy": "/config/policies/{policy_name}/copy",
 }

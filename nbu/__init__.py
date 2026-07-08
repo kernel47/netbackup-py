@@ -10,7 +10,6 @@ from nbu.exceptions import (
     NetBackupError,
     NotFoundError,
     ParsingError,
-    SshError,
     TimeoutError,
     UnsupportedVersionError,
 )
@@ -25,8 +24,6 @@ __all__ = [
     "NetBackupError",
     "NotFoundError",
     "ParsingError",
-    "SshError",
     "TimeoutError",
     "UnsupportedVersionError",
 ]
-

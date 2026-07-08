@@ -1,22 +1,48 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from nbu.filters import combine, expr, raw_expr
 from nbu.models.jobs import Job
 from nbu.parsers.jobs import parse_job
 from nbu.services.base import ServiceBase
 
 JOB_DATE_FIELDS = {"startTime", "endTime", "lastUpdateTime"}
+JOB_STATE_ALIASES = {
+    "done": "DONE",
+    "finished": "DONE",
+    "completed": "DONE",
+    "running": "ACTIVE",
+    "active": "ACTIVE",
+    "in_progress": "ACTIVE",
+}
+
+
+def _since_last_hours(hours: int | float) -> str:
+    if hours <= 0:
+        raise ValueError("last_hours must be greater than 0")
+    value = datetime.now(UTC) - timedelta(hours=hours)
+    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _job_state(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return JOB_STATE_ALIASES.get(value.lower(), value)
 
 
 class JobsService(ServiceBase):
     def list(
         self,
         *,
+        last_hours: int | float | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
         date_field: str = "startTime",
         filter: str | None = None,
         status: int | str | None = None,
+        state: str | None = None,
+        job_state: str | None = None,
         type: str | None = None,
         policy: str | None = None,
         client: str | None = None,
@@ -26,11 +52,14 @@ class JobsService(ServiceBase):
     ) -> list[Job]:
         return list(
             self.iter(
+                last_hours=last_hours,
                 start_date=start_date,
                 end_date=end_date,
                 date_field=date_field,
                 filter=filter,
                 status=status,
+                state=state,
+                job_state=job_state,
                 type=type,
                 policy=policy,
                 client=client,
@@ -43,11 +72,14 @@ class JobsService(ServiceBase):
     def iter(
         self,
         *,
+        last_hours: int | float | None = None,
         start_date: str | None = None,
         end_date: str | None = None,
         date_field: str = "startTime",
         filter: str | None = None,
         status: int | str | None = None,
+        state: str | None = None,
+        job_state: str | None = None,
         type: str | None = None,
         policy: str | None = None,
         client: str | None = None,
@@ -59,11 +91,15 @@ class JobsService(ServiceBase):
         if date_field not in JOB_DATE_FIELDS:
             allowed = ", ".join(sorted(JOB_DATE_FIELDS))
             raise ValueError(f"date_field must be one of: {allowed}")
+        if last_hours is not None and start_date is None:
+            start_date = _since_last_hours(last_hours)
+        selected_state = _job_state(job_state or state)
         filter_value = combine(
             filter,
             raw_expr(date_field, "ge", start_date) if start_date else None,
             raw_expr(date_field, "le", end_date) if end_date else None,
             expr("status", "eq", status) if status is not None else None,
+            expr("state", "eq", selected_state) if selected_state else None,
             expr("jobType", "eq", type) if type else None,
             expr("policyName", "eq", policy) if policy else None,
             expr("clientName", "eq", client) if client else None,

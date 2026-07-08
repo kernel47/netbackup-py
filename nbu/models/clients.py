@@ -6,7 +6,7 @@ from nbu.models.base import NbuModel
 
 
 class Client(NbuModel):
-    name: str
+    name: str = ""
     os: str | None = None
     hardware: str | None = None
     policies: list[str] = Field(default_factory=list)

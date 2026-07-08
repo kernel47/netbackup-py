@@ -9,7 +9,7 @@ from nbu.parsers.common import attributes, first_value, resource_id
 def parse_job(payload: dict[str, Any], source: str = "api") -> Job:
     attrs = attributes(payload)
     return Job(
-        id=first_value(attrs, "jobId", "jobid", "id", "job_id") or resource_id(payload),
+        id=first_value(attrs, "jobId", "jobid", "id", "job_id") or resource_id(payload) or "",
         parent_job_id=first_value(attrs, "parentJobId", "parent_job_id"),
         type=first_value(attrs, "jobType", "type"),
         state=attrs.get("state"),

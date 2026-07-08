@@ -44,8 +44,6 @@ def test_policy_clients_are_built_from_policy_details() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen_paths.append(request.url.path)
-        if request.url.path == "/netbackup/config/unique-policy-clients":
-            return httpx.Response(404, json={"error": "not found"})
         if request.url.path == "/netbackup/config/policies/":
             return httpx.Response(
                 200,
@@ -87,53 +85,10 @@ def test_policy_clients_are_built_from_policy_details() -> None:
     assert [client.name for client in clients] == ["app01", "app02", "db01"]
     assert clients[1].policies == ["db-prod", "linux-prod"]
     assert seen_paths == [
-        "/netbackup/config/unique-policy-clients",
         "/netbackup/config/policies/",
         "/netbackup/config/policies/linux-prod",
         "/netbackup/config/policies/db-prod",
     ]
-
-
-def test_policy_clients_use_unique_policy_clients_endpoint() -> None:
-    seen: dict[str, str | None] = {}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        seen["path"] = request.url.path
-        seen["filter"] = request.url.params.get("filter")
-        seen["accept"] = request.headers.get("accept")
-        return httpx.Response(
-            200,
-            json={
-                "data": [
-                    {
-                        "id": "app01",
-                        "type": "uniqueClient",
-                        "attributes": {
-                            "hardware": "x86",
-                            "OS": "linux",
-                            "policyNames": ["linux-prod"],
-                            "policyTypes": ["STANDARD"],
-                        },
-                    }
-                ],
-                "meta": {"pagination": {"hasNext": False}},
-            },
-        )
-
-    api = ApiTransport(
-        NetBackupConfig(master="master.example.com", token="abc123", version="11.2"),
-        transport=httpx.MockTransport(handler),
-    )
-    service = PoliciesService(api.config, api, VersionManager("11.2"))
-
-    clients = service.clients(name="app")
-
-    assert seen["path"] == "/netbackup/config/unique-policy-clients"
-    assert seen["filter"] == "contains(id,'app')"
-    assert seen["accept"] == "application/vnd.netbackup+json;version=12.0"
-    assert clients[0].name == "app01"
-    assert clients[0].os == "linux"
-    assert clients[0].policies == ["linux-prod"]
 
 
 def test_policy_detail_parser_handles_nested_policy_schema_clients() -> None:
@@ -161,6 +116,7 @@ def test_policy_detail_parser_handles_nested_policy_schema_clients() -> None:
     assert policy.policy_type == "Standard"
     assert policy.clients == ["app01", "app02"]
     assert policy.schedules[0].name == "full"
+    assert policy.schedules[0].backup_type == "Full Backup"
     assert policy.backup_selections == ["/var"]
 
 
@@ -189,4 +145,173 @@ def test_policy_detail_parser_flattens_backup_selection_objects() -> None:
         "/var",
         "/opt",
         'vmware:/filter=vcenter Equal "vc01"',
+    ]
+
+
+def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> None:
+    policy = parse_policy_detail(
+        {
+            "data": {
+                "type": "policy",
+                "id": "linux-prod",
+                "attributes": {
+                    "policyStandard": {
+                        "policyName": "linux-prod",
+                        "policyType": "Standard",
+                        "policyAttributes": {
+                            "active": True,
+                            "storage": "gold-slp",
+                            "storageIsSLP": True,
+                            "volumePool": "NetBackup",
+                        },
+                        "schedules": [
+                            {
+                                "backupType": "Cumulative Incremental Backup",
+                                "storageIsSLP": True,
+                                "backupCopies": {
+                                    "copies": [
+                                        {
+                                            "retentionLevel": 2,
+                                            "retentionPeriod": {"value": 14, "unit": "DAYS"},
+                                            "storage": "silver-slp",
+                                            "volumePool": "NetBackup",
+                                        }
+                                    ],
+                                    "priority": 0,
+                                },
+                                "excludeDates": {"specificDates": ["2026-07-14"]},
+                                "frequencySeconds": 3600,
+                                "includeDates": {"recurringDaysOfWeek": ["MONDAY"]},
+                                "scheduleName": "incr",
+                                "scheduleType": "Calendar",
+                                "startWindow": [
+                                    {
+                                        "durationSeconds": 7200,
+                                        "startSeconds": 3600,
+                                        "dayOfWeek": 1,
+                                    }
+                                ],
+                            }
+                        ],
+                        "clients": [
+                            {"hostName": "app01", "OS": "linux", "hardware": "x86"},
+                            {"hostName": "app02"},
+                        ],
+                        "backupSelections": {"selections": ["/data", "/logs"]},
+                    }
+                },
+            }
+        }
+    )
+
+    assert policy.name == "linux-prod"
+    assert policy.policy_type == "Standard"
+    assert policy.active is True
+    assert policy.clients == ["app01", "app02"]
+    assert policy.backup_selections == ["/data", "/logs"]
+    assert policy.storage == "gold-slp"
+    assert policy.storage_is_slp is True
+    assert policy.slp_name == "gold-slp"
+
+    schedule = policy.schedules[0]
+    assert schedule.name == "incr"
+    assert schedule.type == "Calendar"
+    assert schedule.backup_type == "Cumulative Incremental Backup"
+    assert schedule.retention_period == {"value": 14, "unit": "DAYS"}
+    assert schedule.retention == {"value": 14, "unit": "DAYS"}
+    assert schedule.include_dates == {"recurringDaysOfWeek": ["MONDAY"]}
+    assert schedule.exclude_dates == {"specificDates": ["2026-07-14"]}
+    assert schedule.start_window == [
+        {"durationSeconds": 7200, "startSeconds": 3600, "dayOfWeek": 1}
+    ]
+    assert schedule.storage == "silver-slp"
+    assert schedule.storage_is_slp is True
+    assert schedule.slp_name == "silver-slp"
+
+
+def test_policy_parser_tolerates_missing_fields() -> None:
+    policy = parse_policy_detail({"data": {"attributes": {"policyStandard": {}}}})
+
+    assert policy.name == ""
+    assert policy.clients == []
+    assert policy.schedules == []
+    assert policy.backup_selections == []
+
+
+def test_policy_service_enriches_policy_and_schedule_from_slp() -> None:
+    seen_paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen_paths.append(request.url.path)
+        if request.url.path == "/netbackup/config/policies/linux-prod":
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "id": "linux-prod",
+                        "attributes": {
+                            "policyStandard": {
+                                "policyName": "linux-prod",
+                                "policyType": "Standard",
+                                "policyAttributes": {
+                                    "storage": "policy-slp",
+                                    "storageIsSLP": True,
+                                },
+                                "schedules": [
+                                    {
+                                        "scheduleName": "full",
+                                        "scheduleType": "Calendar",
+                                        "storageIsSLP": True,
+                                        "backupCopies": {
+                                            "copies": [{"storage": "schedule-slp"}]
+                                        },
+                                    }
+                                ],
+                                "clients": [{"hostName": "app01"}],
+                            }
+                        },
+                    }
+                },
+            )
+        slp_name = request.url.path.rsplit("/", 1)[-1]
+        return httpx.Response(
+            200,
+            json={
+                "data": {
+                    "type": "slp",
+                    "id": slp_name,
+                    "attributes": {
+                        "slpName": slp_name,
+                        "active": True,
+                        "operationList": [
+                            {
+                                "operationType": "BACKUP",
+                                "retentionPeriod": {"value": 7, "unit": "DAYS"},
+                                "retentionType": "FIXED",
+                                "storage": {"name": f"{slp_name}-storage", "stype": "disk"},
+                            }
+                        ],
+                    },
+                }
+            },
+        )
+
+    api = ApiTransport(
+        NetBackupConfig(master="master.example.com", token="abc123", version="10.0"),
+        transport=httpx.MockTransport(handler),
+    )
+    service = PoliciesService(api.config, api, VersionManager("10.0"))
+
+    policy = service.get("linux-prod")
+
+    assert policy.slp_name == "policy-slp"
+    assert policy.slp_retention == {"value": 7, "unit": "DAYS"}
+    assert policy.slp_operation["target_storage"] == "policy-slp-storage"
+    assert policy.schedules[0].slp_name == "schedule-slp"
+    assert policy.schedules[0].slp_retention == {"value": 7, "unit": "DAYS"}
+    assert policy.schedules[0].slp_operation["target_storage"] == "schedule-slp-storage"
+    assert seen_paths == [
+        "/netbackup/config/policies/linux-prod",
+        "/netbackup/config/slps/policy-slp",
+        "/netbackup/config/slps/schedule-slp",
     ]

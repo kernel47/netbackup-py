@@ -1,29 +1,21 @@
 # netbackup-py
 
-`netbackup-py` provides a modern typed Python REST API wrapper for Veritas NetBackup automation,
-collection, health checks, and reporting. It is intentionally NetBackup-oriented and exposes the
-import package as `nbu`.
+`netbackup-py` est un module Python leger pour automatiser NetBackup avec l'API REST.
+Le package s'importe avec `nbu`.
 
-The library targets NetBackup 10.0 and newer. REST endpoint mappings are centralized in
-`nbu.version.VersionManager` so deployments can adapt paths as Veritas evolves the OpenAPI
-specification exposed by each master server.
+Le module est volontairement concentre sur le noyau utile en production:
 
-The current mappings were checked against the official Veritas SORT Swagger/OpenAPI references for
-NetBackup 10.0 and 11.2:
+- jobs
+- policies
+- clients issus des details de policies
+- schedules issus des details de policies
+- images/catalog
+- SLP
+- appels API directs pour tester un endpoint non encore modele
 
-- NetBackup Authentication API: `gateway.yaml`
-- NetBackup Administration API: `admin.yaml`
-- NetBackup Catalog API: `catalog.yaml`
-- NetBackup Configuration API: `config.yaml`
-- NetBackup Storage API: `storage.yaml`
-- NetBackup Hosts Configuration API: `config_hosts.yaml`
+Il n'y a pas de SSH.
 
-Your master server may also expose matching API documentation at
-`https://<master>/api-docs/index.html`.
-
-## Install
-
-Recommended editable install for development:
+## Installation
 
 ```bash
 python3 -m venv .venv
@@ -31,33 +23,20 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-Classic requirements install:
+Ou:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Development dependencies:
-
-```bash
-pip install -r requirements-dev.txt
-```
-
-Because this is a package, `pyproject.toml` is the main dependency definition. The
-`requirements*.txt` files are provided for simple deployments and scripts.
-
-## Quick Start
-
-Create a file, for example `my_nbu_script.py`:
+## Connexion
 
 ```python
 from nbu import NetBackup
 
 with NetBackup(
     master="master.company.com",
-    username="user",
+    username="admin",
     password="password",
     domain_type="unixpwd",
     domain_name="master.company.com",
@@ -65,202 +44,237 @@ with NetBackup(
     verify_ssl=False,
 ) as nb:
     print(nb.ping())
-
-    jobs = nb.list_jobs(
-        start_date="2026-07-01T00:00:00Z",
-        end_date="2026-07-02T00:00:00Z",
-        limit=100,
-    )
-    for job in jobs:
-        print(job.job_id, job.client, job.policy, job.status)
 ```
 
-Run it:
-
-```bash
-python my_nbu_script.py
-```
-
-For day-to-day scripts, use the shorter facade methods:
-
-```python
-jobs = nb.list_jobs(status=0, policy="linux-prod")
-images = nb.list_images(
-    client="app01",
-    start_date="2026-07-01T00:00:00Z",
-    end_date="2026-07-02T00:00:00Z",
-)
-storage = nb.list_storage()
-health = nb.health_report()
-```
-
-You can also load connection settings from environment variables:
+Depuis les variables d'environnement:
 
 ```bash
 export NBU_MASTER=master.company.com
-export NBU_USERNAME=user
+export NBU_USERNAME=admin
 export NBU_PASSWORD=password
 export NBU_DOMAIN_TYPE=unixpwd
 export NBU_DOMAIN_NAME=master.company.com
 export NBU_VERSION=11.2
+export NBU_VERIFY_SSL=false
 ```
 
 ```python
 nb = NetBackup.from_env()
 ```
 
-Automatic version discovery is available when the master exposes version information:
+## Jobs
+
+Dernieres 24h:
 
 ```python
-version = nb.discover_version()
-print(nb.version.current)
+jobs = nb.list_jobs_last_24h(limit=1000)
 ```
 
-## API Login
+Derniere heure:
 
-The client uses the NetBackup REST API with token login, NetBackup vendor media headers,
-domain-aware authentication, pagination, retries, timeouts, SSL verification configuration, and
-optional proxy settings.
+```python
+jobs = nb.list_jobs_last_hour()
+```
 
-For login, NetBackup commonly expects:
+Jobs en cours uniquement:
 
-```json
-{
-  "userName": "user",
-  "password": "password",
-  "domainType": "unixpwd",
-  "domainName": "master.company.com"
+```python
+jobs = nb.list_running_jobs(last_hours=1)
+```
+
+Jobs termines uniquement:
+
+```python
+jobs = nb.list_finished_jobs(last_hours=24)
+```
+
+Filtres classiques:
+
+```python
+jobs = nb.list_jobs(
+    start_date="2026-07-08T00:00:00Z",
+    end_date="2026-07-08T23:59:59Z",
+    status=0,
+    policy="linux-prod",
+    client="app01",
+    type="BACKUP",
+)
+```
+
+`date_field` vaut `startTime` par defaut. Vous pouvez utiliser `endTime` ou `lastUpdateTime`:
+
+```python
+jobs = nb.list_jobs(date_field="endTime", last_hours=24)
+```
+
+Pour les gros volumes:
+
+```python
+for job in nb.iter_jobs(last_hours=24, limit=10000):
+    print(job.job_id, job.client, job.policy, job.state, job.status)
+```
+
+## Policies, Clients Et Schedules
+
+Liste simple des policies:
+
+```python
+policies = nb.list_policies(limit=100)
+```
+
+Details avec clients, schedules et backup selections:
+
+```python
+policies = nb.list_policies(include_details=True)
+
+for policy in policies:
+    print(policy.name, policy.policy_type, policy.active)
+    print(policy.clients)
+    for schedule in policy.schedules:
+        print(schedule.name, schedule.type, schedule.backup_type)
+        print(schedule.retention, schedule.retention_period)
+        print(schedule.include_dates, schedule.exclude_dates, schedule.start_window)
+        print(schedule.storage, schedule.storage_is_slp, schedule.slp_name)
+```
+
+Une policy precise:
+
+```python
+policy = nb.get_policy("linux-prod")
+print(policy.clients)
+print(policy.schedules)
+print(policy.backup_selections)
+```
+
+Si `policy.storage_is_slp` ou `schedule.storage_is_slp` vaut `True`, `slp_name` contient le nom de
+la SLP. Dans ce cas, la retention finale peut etre portee par la SLP:
+
+```python
+if schedule.storage_is_slp and schedule.slp_name:
+    slp = nb.slp.get(schedule.slp_name)
+```
+
+Quand `storageIsSLP=True`, `get_policy()` tente aussi d'enrichir la policy ou le schedule avec:
+
+- `slp_retention`
+- `slp_operation`
+
+Liste des clients proteges, reconstruite uniquement depuis les details des policies:
+
+```python
+clients = nb.list_policy_clients()
+```
+
+`list_protected_clients()` est un alias.
+
+## Images / Catalog
+
+Dernieres 24h:
+
+```python
+images = nb.list_images_last_24h(limit=1000)
+```
+
+Derniere heure:
+
+```python
+images = nb.list_images_last_hour(client="app01")
+```
+
+Avec filtres:
+
+```python
+images = nb.list_images(
+    client="app01",
+    policy="linux-prod",
+    start_date="2026-07-08T00:00:00Z",
+    end_date="2026-07-08T23:59:59Z",
+)
+```
+
+Detail d'une image:
+
+```python
+image = nb.get_image("app01_1234567890")
+```
+
+Contenu catalogue:
+
+```python
+contents = nb.list_image_contents(
+    filter="backupId eq 'app01_1234567890'",
+    limit=100,
+)
+```
+
+## SLP
+
+```python
+slps = nb.list_slps()
+slp = nb.get_slp("gold-copy")
+```
+
+## Filtres Custom
+
+Tous les endpoints de liste gardes acceptent `filter=` pour envoyer un filtre OData custom.
+Le filtre custom est combine avec les raccourcis:
+
+```python
+jobs = nb.list_jobs(
+    filter="status eq 0",
+    policy="linux-prod",
+    last_hours=24,
+)
+
+images = nb.list_images(
+    filter="scheduleType eq 'FULL'",
+    client="app01",
+    last_hours=24,
+)
+```
+
+## Pagination
+
+Les methodes `list_*` collectent toutes les pages, sauf si vous passez `limit=`.
+Pour eviter de charger trop de donnees, utilisez `iter_jobs()` ou `iter_images()`.
+
+Pour exposer votre propre API paginee:
+
+```python
+page = nb.api.get_collection_page(
+    "/admin/jobs",
+    pagination="cursor",
+    page_token=request.args.get("next"),
+)
+
+response = {
+    "items": page.items,
+    "next": page.next_token,
+    "total": page.total,
 }
 ```
 
-`domain_type` and `domain_name` default to empty strings for local accounts, matching the
-classic `nbupy` behavior. The library sends `Accept` and `Content-Type` as
-`application/vnd.netbackup+json;version=<api_version>` and sends the NetBackup token as the raw
-`Authorization` header value by default. Set `authorization_scheme="Bearer"` only if your API
-gateway or environment requires it.
+NetBackup ne retourne pas toujours `total`. Le plus fiable est de suivre `next`.
 
-Paginated collection calls automatically send `page[limit]` and follow the official pagination
-metadata until all pages are collected. Jobs use cursor pagination with `page[after]`; catalog,
-configuration, SLP, and storage collections use offset pagination with `page[offset]`.
+## Appels API Directs
 
-If you build your own API on top of this package, use `nb.api.get_collection_page(...)` and expose
-`next_token` to callers. NetBackup does not always return a total count, so `total` is optional.
-The client also supports per-area media versions through `api_versions`; this is used for 11.x
-policy endpoints where `config_policies.yaml` advertises a different media version than admin or
-catalog.
-
-## Large Collections
-
-By default, list methods collect every page that NetBackup returns:
+Pour tester un endpoint non modele, utilisez la session authentifiee:
 
 ```python
-jobs = nb.list_jobs(start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
-images = nb.list_images(client="app01")
-```
-
-That is convenient for small result sets, but it can load many records into memory. Use `limit`
-when you only need a bounded result:
-
-```python
-jobs = nb.list_jobs(status=0, limit=1000)
-images = nb.list_images(client="app01", limit=500)
-```
-
-For large environments, stream records instead:
-
-```python
-for job in nb.iter_jobs(start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z"):
-    process(job)
-
-for image in nb.iter_images(client="app01", limit=10_000):
-    process(image)
-```
-
-Streaming still follows NetBackup pagination, but it yields records one by one instead of building
-one large list first. The safest production pattern is to combine streaming with date filters.
-
-Dates should be ISO 8601 values accepted by the NetBackup API. They are sent as date-time values
-inside the OData filter, for example `startTime ge 2026-07-01T00:00:00Z`.
-
-Jobs default to filtering on `startTime`:
-
-```python
-jobs = nb.list_jobs(
-    start_date="2026-07-01T00:00:00Z",
-    end_date="2026-07-02T00:00:00Z",
-)
-```
-
-You can switch the job date field when needed:
-
-```python
-jobs = nb.list_jobs(
-    date_field="endTime",
-    start_date="2026-07-01T00:00:00Z",
-    end_date="2026-07-02T00:00:00Z",
-)
-```
-
-Every list method that maps to a filterable REST endpoint accepts `filter=` for custom OData:
-
-```python
-jobs = nb.list_jobs(filter="status eq 0 and jobType eq 'BACKUP'", limit=500)
-images = nb.iter_images(filter="scheduleType eq 'FULL'", client="app01")
-policies = nb.list_policies(filter="active eq true")
-```
-
-Custom filters are combined with shortcut arguments using `and`.
-
-## Services
-
-```python
-nb.list_jobs(status=0, policy="linux-prod", ignore_child_jobs=True)
-nb.get_job_progress_logs(1234, limit=100)
-nb.list_policies()
-nb.list_policies(include_details=True)
-nb.list_clients()          # hosts known by /config/hosts
-nb.list_policy_clients()   # protected clients from policy details
-nb.list_images(client="app01", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
-nb.get_image("app01_1234567890")
-nb.list_image_contents(filter="backupId eq 'app01_1234567890'", limit=100)
-nb.list_storage()
-nb.list_slps()
-nb.list_vmware_policy_selections("vmware-policy")
-nb.discover_vmware_policy_clients("vmware-policy", limit=100)
-nb.health_report()
-```
-
-The service objects are still available when you need more specific calls:
-
-```python
-nb.jobs.get(1234)
-nb.policies.clients()
-nb.storage.storage_units()
-nb.storage.disk_pools()
-nb.slp.get("gold-copy")
-```
-
-## Direct API Calls
-
-When you need to test an endpoint exactly as seen in the NetBackup Web UI or Swagger, use the raw
-helpers. They reuse the same login token, retries, timeout, SSL settings, proxy settings, and
-NetBackup media headers as the high-level services:
-
-```python
-result = nb.api_get(
+data = nb.api_get(
     "/config/workloads/vmware/test-query/query-1",
     params={"include": "assets"},
 )
 ```
 
-POST with your own JSON body:
+POST direct:
 
 ```python
 body = {
     "data": {
         "type": "intelligentTestQueryRequest",
         "attributes": {
-            "testQuery": "vcenter Equal 'vc01' and cluster Contains 'CL-prod'",
+            "testQuery": "vcenter Equal 'vc01'",
             "discoveryHost": "media01",
         },
     }
@@ -273,132 +287,56 @@ result = nb.api_post(
 )
 ```
 
-Use `api_request(method, path, params=..., json=..., headers=...)` for any other HTTP method.
-
-## VMware Preview
-
-NetBackup VMware policies can use dynamic VIP selections instead of a static client list. In the
-policy detail, these selections appear in `backupSelections`, for example:
-
-```text
-vmware:/filter=vcenter Equal "vc01" and cluster Contains "CL-prod" and Tag NotEqual "no_backup"
-```
-
-For API-only discovery, `backupSelections` is the source of truth. `netbackup-py` extracts the
-VMware query and sends it to the NetBackup workload test-query endpoint, the same behavior used by
-the UI when testing a VMware Intelligent Policy query:
-
-```text
-POST /config/workloads/vmware/test-query
-GET  /config/workloads/vmware/test-query/{testQueryId}
-```
-
-Inspect the dynamic selections on a VMware policy:
+Autre methode HTTP:
 
 ```python
-selections = nb.list_vmware_policy_selections("vmware-policy")
-for selection in selections:
-    print(selection.raw)
-    print(selection.query_filter)
-```
-
-Discover the VMs matched by a VMware policy:
-
-```python
-clients = nb.discover_vmware_policy_clients("vmware-policy", limit=500)
-```
-
-You can also start the test query directly:
-
-```python
-query = nb.start_vmware_test_query(
-    'vcenter Equal "vc01" and cluster Contains "CL-prod"'
-)
+result = nb.api_request("PUT", "/config/example", json={"data": {"attributes": {}}})
 ```
 
 ## Collectors
 
-Collectors return `CollectionResult`, which can be converted into index-friendly dictionaries.
-
 ```python
-result = nb.collect("jobs", start_date="2026-07-01T00:00:00Z", end_date="2026-07-02T00:00:00Z")
-documents = result.to_indexable()
+nb.collect("jobs", last_hours=24)
+nb.collect("jobs_last_24h")
+nb.collect("jobs_last_hour")
+nb.collect("running_jobs", last_hours=1)
+nb.collect("finished_jobs", last_hours=24)
+nb.collect("policies", include_details=True)
+nb.collect("policy_clients")
+nb.collect("images_last_24h")
+nb.collect("slp")
 ```
 
-Collectors also accept `limit` for services that support it:
+## Fonctions Principales
 
-```python
-result = nb.collect("images", client="app01", limit=1000)
-```
-
-The older fluent collector style is also supported:
-
-```python
-result = nb.collectors.jobs().collect(
-    start_date="2026-07-01T00:00:00Z",
-    end_date="2026-07-02T00:00:00Z",
-)
-```
-
-The output is designed to be easy to send later to Elasticsearch, PostgreSQL, files, dashboards,
-or reporting pipelines.
-
-## Models
-
-All normalized objects use Pydantic v2:
-
-- `Job`
-- `Policy`
-- `Schedule`
-- `Client`
-- `Image`
-- `StorageUnit`
-- `DiskPool`
-- `SLP`
-- `VMwareClient`
-- `HealthCheck`
-- `HealthReport`
-
-Each model preserves the original source payload in `raw` and marks its collection source in
-`source`.
-
-## Version Handling
-
-```python
-nb.version.current
-nb.version.supports("slp")
-nb.version.supports("vmware_test_query")
-```
-
-Unsupported features raise `FeatureNotSupportedError` with the required minimum version.
-
-## Design Notes
-
-NetBackup installations differ by version, installed options, RBAC permissions, and exposed API
-surface. This package therefore keeps endpoint names centralized and service behavior conservative.
-When adding a feature, check the official Veritas NetBackup API documentation for the exact target
-version and update `nbu/version.py` plus the relevant service/model tests.
-
-
-## Veritas DOC 
-
-source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/catalog/catalog.yaml
-
-/catalog/images
-/catalog/image-contents 
-/catalog/images/{backupId}
-/catalog/images/contents/{requestId}
-
-
-source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/config/config.yaml
-
-/config/policies/
-/config/policies/{policyName}
-/config/policies/{policyName}/copy
-/config/unique-policy-clients
-
-source : https://sort.veritas.com/public/documents/nbu/10.0/windowsandunix/productguides/html/admin/admin.yaml
-
-/admin/jobs
-/admin/jobs/{jobId}
-/admin/jobs/{jobId}/progress-logs
+- `login()`
+- `ping()`
+- `discover_version()`
+- `api_request()`
+- `api_get()`
+- `api_post()`
+- `list_jobs()`
+- `iter_jobs()`
+- `list_recent_jobs()`
+- `list_jobs_last_24h()`
+- `list_jobs_last_hour()`
+- `list_running_jobs()`
+- `list_finished_jobs()`
+- `get_job()`
+- `get_job_progress_logs()`
+- `list_policies()`
+- `get_policy()`
+- `list_policy_clients()`
+- `list_protected_clients()`
+- `list_images()`
+- `iter_images()`
+- `list_recent_images()`
+- `list_images_last_24h()`
+- `list_images_last_hour()`
+- `get_image()`
+- `list_image_contents()`
+- `get_image_contents_result()`
+- `list_slps()`
+- `get_slp()`
+- `collect()`
+- `close()`

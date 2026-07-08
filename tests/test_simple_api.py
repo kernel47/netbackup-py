@@ -29,17 +29,17 @@ def test_top_level_shortcuts_delegate_to_services() -> None:
     nb = NetBackup(master="master.example.com", token="token")
     nb.jobs = SimpleNamespace(list=lambda **kwargs: [{"kind": "job", **kwargs}])
     nb.policies = SimpleNamespace(list=lambda **kwargs: [{"kind": "policy", **kwargs}])
-    nb.storage = SimpleNamespace(
-        storage_units=lambda **kwargs: [{"kind": "storage-unit", **kwargs}],
-        disk_pools=lambda **kwargs: [{"kind": "disk-pool", **kwargs}],
+    nb.images = SimpleNamespace(list=lambda **kwargs: [{"kind": "image", **kwargs}])
+    nb.slp = SimpleNamespace(
+        list=lambda **kwargs: [{"kind": "slp", **kwargs}],
+        get=lambda name: {"kind": "slp", "name": name},
     )
 
     assert nb.list_jobs(limit=5) == [{"kind": "job", "limit": 5}]
     assert nb.list_policies(name="prod") == [{"kind": "policy", "name": "prod"}]
-    assert nb.list_storage(limit=10) == [
-        {"kind": "storage-unit", "limit": 10},
-        {"kind": "disk-pool", "limit": 10},
-    ]
+    assert nb.list_images(client="app01") == [{"kind": "image", "client": "app01"}]
+    assert nb.list_slps(limit=10) == [{"kind": "slp", "limit": 10}]
+    assert nb.get_slp("gold-copy") == {"kind": "slp", "name": "gold-copy"}
 
     nb.close()
 
@@ -76,5 +76,21 @@ def test_top_level_iterators_delegate_to_services() -> None:
 
     assert list(nb.iter_jobs(limit=1)) == [{"id": 1, "limit": 1}]
     assert list(nb.iter_images(client="app01")) == [{"image_id": "client_1", "client": "app01"}]
+
+    nb.close()
+
+
+def test_recent_and_state_shortcuts_delegate_to_jobs_and_images() -> None:
+    nb = NetBackup(master="master.example.com", token="token")
+    nb.jobs = SimpleNamespace(list=lambda **kwargs: [{"kind": "job", **kwargs}])
+    nb.images = SimpleNamespace(list=lambda **kwargs: [{"kind": "image", **kwargs}])
+
+    assert nb.list_jobs_last_24h(limit=10) == [{"kind": "job", "last_hours": 24, "limit": 10}]
+    assert nb.list_jobs_last_hour() == [{"kind": "job", "last_hours": 1}]
+    assert nb.list_running_jobs(limit=5) == [{"kind": "job", "job_state": "running", "limit": 5}]
+    assert nb.list_finished_jobs(limit=5) == [{"kind": "job", "job_state": "done", "limit": 5}]
+    assert nb.list_images_last_hour(client="app01") == [
+        {"kind": "image", "last_hours": 1, "client": "app01"}
+    ]
 
     nb.close()
