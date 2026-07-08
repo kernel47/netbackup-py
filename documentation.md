@@ -151,21 +151,14 @@ Les schedules sont dans les details de policy:
 policy = nb.get_policy("linux-prod")
 
 for schedule in policy.schedules:
-    print(schedule.name, schedule.type, schedule.backup_type)
-    print(schedule.retention, schedule.retention_period)
+    print(schedule.schedule_name, schedule.schedule_type, schedule.backup_type)
+    print(schedule.retention)
     print(schedule.frequency_seconds, schedule.include_dates, schedule.exclude_dates)
-    print(schedule.start_window)
+    print(schedule.start_window, schedule.storage, schedule.storage_is_slp, schedule.slp)
 ```
 
-Si `schedule.storage_is_slp` vaut `True`, utilisez `schedule.slp_name` pour lire la SLP:
-
-```python
-if schedule.storage_is_slp and schedule.slp_name:
-    slp = nb.slp.get(schedule.slp_name)
-```
-
-`get_policy()` essaie aussi d'enrichir automatiquement la policy ou le schedule avec
-`slp_retention` et `slp_operation` si `storageIsSLP=True`.
+Si `storageIsSLP=True`, `get_policy()` lit la SLP et remplace directement `retention`
+et `storage` avec les valeurs finales trouvees dans `operationList` / `operations`.
 
 ## Images
 

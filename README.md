@@ -131,10 +131,10 @@ for policy in policies:
     print(policy.name, policy.policy_type, policy.active)
     print(policy.clients)
     for schedule in policy.schedules:
-        print(schedule.name, schedule.type, schedule.backup_type)
-        print(schedule.retention, schedule.retention_period)
+        print(schedule.schedule_name, schedule.schedule_type, schedule.backup_type)
+        print(schedule.retention)
         print(schedule.include_dates, schedule.exclude_dates, schedule.start_window)
-        print(schedule.storage, schedule.storage_is_slp, schedule.slp_name)
+        print(schedule.storage, schedule.storage_is_slp, schedule.slp)
 ```
 
 Une policy precise:
@@ -146,18 +146,14 @@ print(policy.schedules)
 print(policy.backup_selections)
 ```
 
-Si `policy.storage_is_slp` ou `schedule.storage_is_slp` vaut `True`, `slp_name` contient le nom de
-la SLP. Dans ce cas, la retention finale peut etre portee par la SLP:
+Si `policy.storage_is_slp` ou `schedule.storage_is_slp` vaut `True`, `get_policy()` lit la SLP et
+remplace directement:
 
-```python
-if schedule.storage_is_slp and schedule.slp_name:
-    slp = nb.slp.get(schedule.slp_name)
-```
+- `retention`
+- `storage`
 
-Quand `storageIsSLP=True`, `get_policy()` tente aussi d'enrichir la policy ou le schedule avec:
-
-- `slp_retention`
-- `slp_operation`
+Donc `schedule.retention` et `schedule.storage` contiennent les valeurs finales quand la SLP est
+lisible. `schedule.slp` garde le nom de la SLP utilisee.
 
 Liste des clients proteges, reconstruite uniquement depuis les details des policies:
 

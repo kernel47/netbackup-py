@@ -84,16 +84,20 @@ class PoliciesService(ServiceBase):
 
     def _enrich_slp(self, policy: Policy) -> None:
         cache: dict[str, SLP | None] = {}
-        if policy.storage_is_slp and policy.slp_name:
-            slp = self._get_slp(policy.slp_name, cache)
+        if policy.storage_is_slp and policy.storage:
+            slp = self._get_slp(policy.storage, cache)
             operation = self._backup_operation(slp) if slp else None
-            policy.slp_retention = slp.retention if slp else None
-            policy.slp_operation = operation.model_dump(mode="json") if operation else None
+            if slp and slp.retention is not None:
+                policy.retention = slp.retention
+            if operation and operation.target_storage:
+                policy.storage = operation.target_storage
 
         for schedule in policy.schedules:
-            if not schedule.storage_is_slp or not schedule.slp_name:
+            if not schedule.storage_is_slp or not schedule.storage:
                 continue
-            slp = self._get_slp(schedule.slp_name, cache)
+            slp = self._get_slp(schedule.storage, cache)
             operation = self._backup_operation(slp) if slp else None
-            schedule.slp_retention = slp.retention if slp else None
-            schedule.slp_operation = operation.model_dump(mode="json") if operation else None
+            if slp and slp.retention is not None:
+                schedule.retention = slp.retention
+            if operation and operation.target_storage:
+                schedule.storage = operation.target_storage

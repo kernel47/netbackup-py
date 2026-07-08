@@ -115,7 +115,7 @@ def test_policy_detail_parser_handles_nested_policy_schema_clients() -> None:
     assert policy.name == "linux-prod"
     assert policy.policy_type == "Standard"
     assert policy.clients == ["app01", "app02"]
-    assert policy.schedules[0].name == "full"
+    assert policy.schedules[0].schedule_name == "full"
     assert policy.schedules[0].backup_type == "Full Backup"
     assert policy.backup_selections == ["/var"]
 
@@ -211,14 +211,18 @@ def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> No
     assert policy.backup_selections == ["/data", "/logs"]
     assert policy.storage == "gold-slp"
     assert policy.storage_is_slp is True
-    assert policy.slp_name == "gold-slp"
 
     schedule = policy.schedules[0]
-    assert schedule.name == "incr"
-    assert schedule.type == "Calendar"
+    assert schedule.schedule_name == "incr"
+    assert schedule.schedule_type == "Calendar"
     assert schedule.backup_type == "Cumulative Incremental Backup"
-    assert schedule.retention_period == {"value": 14, "unit": "DAYS"}
-    assert schedule.retention == {"value": 14, "unit": "DAYS"}
+    assert schedule.retention == "14 DAYS"
+    assert schedule.backup_copies == {
+        "storage": "silver-slp",
+        "retentionPeriod": "14 DAYS",
+        "retentionLevel": 2,
+        "volumePool": "NetBackup",
+    }
     assert schedule.include_dates == {"recurringDaysOfWeek": ["MONDAY"]}
     assert schedule.exclude_dates == {"specificDates": ["2026-07-14"]}
     assert schedule.start_window == [
@@ -226,7 +230,7 @@ def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> No
     ]
     assert schedule.storage == "silver-slp"
     assert schedule.storage_is_slp is True
-    assert schedule.slp_name == "silver-slp"
+    assert schedule.slp == "silver-slp"
 
 
 def test_policy_parser_tolerates_missing_fields() -> None:
@@ -304,12 +308,12 @@ def test_policy_service_enriches_policy_and_schedule_from_slp() -> None:
 
     policy = service.get("linux-prod")
 
-    assert policy.slp_name == "policy-slp"
-    assert policy.slp_retention == {"value": 7, "unit": "DAYS"}
-    assert policy.slp_operation["target_storage"] == "policy-slp-storage"
-    assert policy.schedules[0].slp_name == "schedule-slp"
-    assert policy.schedules[0].slp_retention == {"value": 7, "unit": "DAYS"}
-    assert policy.schedules[0].slp_operation["target_storage"] == "schedule-slp-storage"
+    assert policy.retention == "7 DAYS"
+    assert policy.storage == "policy-slp-storage"
+    assert policy.slp == "policy-slp"
+    assert policy.schedules[0].retention == "7 DAYS"
+    assert policy.schedules[0].storage == "schedule-slp-storage"
+    assert policy.schedules[0].slp == "schedule-slp"
     assert seen_paths == [
         "/netbackup/config/policies/linux-prod",
         "/netbackup/config/slps/policy-slp",

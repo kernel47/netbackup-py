@@ -6,6 +6,15 @@ from nbu.models.slp import SLP, SLPOperation
 from nbu.parsers.common import attributes, first_value, list_value, resource_id
 
 
+def _simple_retention(value: Any) -> Any:
+    if isinstance(value, dict):
+        amount = first_value(value, "value", "amount")
+        unit = first_value(value, "unit")
+        if amount is not None and unit:
+            return f"{amount} {unit}"
+    return value
+
+
 def parse_slp_operation(payload: dict[str, Any], source: str = "api") -> SLPOperation:
     operation = first_value(payload, "operation", "type", "operationType")
     storage = first_value(payload, "storage")
@@ -15,7 +24,7 @@ def parse_slp_operation(payload: dict[str, Any], source: str = "api") -> SLPOper
     return SLPOperation(
         operation=str(operation or ""),
         target_storage=target_storage,
-        retention=first_value(payload, "retention", "retentionPeriod"),
+        retention=_simple_retention(first_value(payload, "retention", "retentionPeriod")),
         retention_type=first_value(payload, "retentionType", "retention_type"),
         duplication=str(operation or "").upper() == "DUPLICATION",
         operation_index=first_value(payload, "operationIndex", "operation_index"),
@@ -45,7 +54,7 @@ def parse_slp(payload: dict[str, Any], source: str = "api") -> SLP:
         active=attrs.get("active"),
         status=attrs.get("status"),
         operations=operations,
-        retention=first_value(attrs, "retention", "retentionPeriod")
+        retention=_simple_retention(first_value(attrs, "retention", "retentionPeriod"))
         or (backup_operation.retention if backup_operation else None),
         target_storage=first_value(attrs, "targetStorage", "target_storage")
         or (backup_operation.target_storage if backup_operation else None),
