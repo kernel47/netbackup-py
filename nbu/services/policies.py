@@ -3,7 +3,7 @@ from __future__ import annotations
 from nbu.filters import combine, contains
 from nbu.models.clients import Client
 from nbu.models.policies import Policy
-from nbu.models.slp import SLP
+from nbu.models.slp import SLP, SLPDetails
 from nbu.parsers.policies import (
     parse_policy_detail,
     parse_policy_summary,
@@ -75,7 +75,15 @@ class PoliciesService(ServiceBase):
 
     def _resolve_slps(self, policy: Policy, cache: dict[str, SLP]) -> None:
         names = {policy.slp} if policy.slp else set()
-        names.update(schedule.slp for schedule in policy.schedules if schedule.slp)
+        for schedule in policy.schedules:
+            if schedule.storage_is_slp is not True:
+                continue
+            # Read declared references from every copy, without adding derived fields.
+            copies = (schedule.backup_copies or {}).get("copies", [])
+            for copy in copies if isinstance(copies, list) else []:
+                name = copy.get("storage") if isinstance(copy, dict) else None
+                if isinstance(name, str) and name:
+                    names.add(name)
         for name in sorted(names):
             if name not in cache:
                 cache[name] = parse_slp(
@@ -88,4 +96,6 @@ class PoliciesService(ServiceBase):
                         },
                     )
                 )
-            policy.slps[name] = cache[name].model_copy(deep=True)
+            policy.slps[name] = SLPDetails.model_validate(
+                cache[name].model_dump(exclude={"raw", "source"})
+            )

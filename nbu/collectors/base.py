@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from nbu.models.base import JsonModel
 
 
-class CollectionResult(BaseModel):
+class CollectionResult(JsonModel):
     collector: str
     records: list[Any] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -15,7 +18,8 @@ class CollectionResult(BaseModel):
         docs = []
         for record in self.records:
             if hasattr(record, "model_dump"):
-                docs.append(record.model_dump(mode="json"))
+                dumped = record.model_dump(mode="json")
+                docs.append(json.loads(dumped) if isinstance(dumped, str) else dumped)
             else:
                 docs.append(dict(record))
         return docs

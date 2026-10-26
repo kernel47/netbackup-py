@@ -7,7 +7,7 @@ from nbu.models.slp import SLP, SLPOperation
 from nbu.parsers.common import attributes, first_value, list_value, resource_id
 
 
-def parse_slp_operation(payload: dict[str, Any], source: str = "api") -> SLPOperation:
+def parse_slp_operation(payload: dict[str, Any]) -> SLPOperation:
     payload = deepcopy(payload)
     operation = first_value(payload, "operationType", "operation", "type")
     storage = payload.get("storage")
@@ -33,8 +33,6 @@ def parse_slp_operation(payload: dict[str, Any], source: str = "api") -> SLPOper
         preserve_multiplexing=payload.get("preserveMultiplexing"),
         operation_priority=payload.get("operationPriority"),
         slp_window_name=payload.get("slpWindowName"),
-        raw=payload,
-        source=source,
     )
 
 
@@ -42,9 +40,7 @@ def parse_slp(payload: dict[str, Any], source: str = "api") -> SLP:
     attrs = deepcopy(attributes(payload))
     operation_items = first_value(attrs, "operationList", "operations", "operation_list")
     operations = [
-        parse_slp_operation(op, source)
-        for op in list_value(operation_items)
-        if isinstance(op, dict)
+        parse_slp_operation(op) for op in list_value(operation_items) if isinstance(op, dict)
     ]
     return SLP(
         name=first_value(attrs, "slpName", "storage_lifecycle_policy", "slp", "name")

@@ -74,7 +74,7 @@ Introduire `BackupCopies(copies: list[BackupCopy], priority: int | None)` et `Ba
 
 Conserver `retention_period` sous une forme structurée `{value, unit}`. Fournir éventuellement une propriété de présentation, sans remplacer les données. Le schéma SLP précise que `value=-1` ou `unit=INFINITE` indiquent l'infini ; `value=0` signifie expiration immédiate. Un niveau de rétention numérique, y compris zéro, ne doit pas être perdu ou converti arbitrairement en durée.
 
-Ajouter `client_details` tout en gardant `clients: list[str]` pour les usages actuels. Ajouter `policy_attributes` et les attributs de schedule manquants. Conserver `raw` pour les champs propres aux différents workloads et les extensions futures.
+Conserver `clients: list[str]` et les attributs utiles des schedules. Les détails clients, attributs de policy et extensions propres aux workloads restent dans le seul `raw` de la policy, sans vues redondantes. Les objets imbriqués ne recopient pas de `raw`.
 
 ### 3. Parser et héritage
 

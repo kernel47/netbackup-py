@@ -74,22 +74,31 @@ def test_policy_preserves_all_configuration(envelope):
     }
     original = deepcopy(payload)
     policy = parse_policy_detail(payload)
-    assert policy.configuration == body
-    assert policy.client_details == body["clients"]
-    assert policy.policy_attributes == body["policyAttributes"]
+    assert policy.clients == ["db"]
+    assert not hasattr(policy, "configuration")
+    assert not hasattr(policy, "client_details")
+    assert not hasattr(policy, "policy_attributes")
     schedule = policy.schedules[0]
     assert schedule.backup_copies == body["schedules"][0]["backupCopies"]
     assert schedule.include_dates == {"lastDayOfMonth": False, "specificDates": []}
-    assert schedule.synthetic_backup is False
-    assert schedule.retention is None  # two different levels cannot be summarized
-    assert schedule.storage is None  # no invented inheritance or first-copy destination
-    assert policy.to_api() == original
-    assert schedule.to_api() == body["schedules"][0]
+    assert set(schedule.model_dump()) == {
+        "schedule_name",
+        "schedule_type",
+        "backup_type",
+        "frequency_seconds",
+        "start_window",
+        "include_dates",
+        "exclude_dates",
+        "storage_is_slp",
+        "backup_copies",
+    }
+    assert policy.raw == original
+    assert not hasattr(schedule, "raw")
     payload.clear()
-    policy.configuration["policyAttributes"]["storage"] = "edited"
-    exported = policy.to_api()
-    exported["data"]["attributes"].clear()
-    assert policy.to_api() == original  # inputs, model views and exports are independent
+    schedule.backup_copies["copies"][0]["storage"] = "edited"
+    exported = policy.model_dump()
+    exported["raw"]["data"]["attributes"].clear()
+    assert policy.raw == original  # inputs, model views and exports are independent
 
 
 def test_summary_reads_top_level_slp_flag():
@@ -110,10 +119,8 @@ def test_empty_copies_do_not_crash_or_invent_values(backup_copies):
     if backup_copies is not None:
         payload["backupCopies"] = backup_copies
     schedule = parse_schedule(payload)
-    assert schedule.storage is None
-    assert schedule.retention is None
     assert schedule.backup_copies == backup_copies
-    assert schedule.to_api() == payload
+    assert not hasattr(schedule, "raw")
 
 
 @pytest.mark.parametrize(
@@ -121,7 +128,7 @@ def test_empty_copies_do_not_crash_or_invent_values(backup_copies):
 )
 def test_structured_retention_is_not_rewritten(period):
     schedule = parse_schedule({"backupCopies": {"copies": [{"retentionPeriod": period}]}})
-    assert schedule.retention == period
+    assert schedule.backup_copies == {"copies": [{"retentionPeriod": period}]}
 
 
 def test_slp_has_no_arbitrary_global_retention_or_destination():
@@ -161,8 +168,9 @@ def test_slp_has_no_arbitrary_global_retention_or_destination():
     assert slp.target_storage is None
     assert slp.operations[1].retention == {"value": -1, "unit": "INFINITE"}
     assert slp.operations[1].source_operation_index == 1
-    assert slp.to_api() == payload
-    assert slp.operations[1].to_api()["futureField"] is False
+    assert slp.raw == payload
+    assert slp.raw["data"]["attributes"]["operationList"][1]["futureField"] is False
+    assert not hasattr(slp.operations[1], "raw")
 
 
 def make_service(handler, **config):
@@ -193,7 +201,7 @@ def test_default_get_never_reads_slp_and_explicit_resolution_propagates_errors()
         return httpx.Response(404)
 
     service = make_service(handler)
-    assert service.get("p").to_api() == payload
+    assert service.get("p").raw == payload
     assert paths == ["/netbackup/config/policies/p"]
     with pytest.raises(NotFoundError):
         service.get("p", resolve_slp=True)
@@ -327,6 +335,9 @@ def test_filters_keep_custom_or_grouped():
 def test_other_parsers_preserve_unknown_fields_and_isolate_exports(parser):
     payload = {"data": {"id": "1", "attributes": {"unknown": {"enabled": False}}}}
     parsed = parser(payload)
-    assert parsed.to_api() == payload
-    parsed.api_attributes["unknown"]["enabled"] = True
-    assert parsed.api_attributes["unknown"]["enabled"] is False
+    assert parsed.raw == payload
+    exported = parsed.model_dump()
+    exported["raw"]["data"]["attributes"]["unknown"]["enabled"] = True
+    assert parsed.raw == payload
+    assert not hasattr(parsed, "to_api")
+    assert not hasattr(parsed, "api_attributes")

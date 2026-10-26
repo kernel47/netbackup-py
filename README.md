@@ -132,9 +132,9 @@ for policy in policies:
     print(policy.clients)
     for schedule in policy.schedules:
         print(schedule.schedule_name, schedule.schedule_type, schedule.backup_type)
-        print(schedule.retention)
+        print(schedule.backup_copies)
         print(schedule.include_dates, schedule.exclude_dates, schedule.start_window)
-        print(schedule.storage, schedule.storage_is_slp, schedule.slp)
+        print(schedule.storage_is_slp)
 ```
 
 Une policy precise:
@@ -151,9 +151,9 @@ par defaut et ne remplace jamais `storage` ou `retention` par des valeurs issues
 
 ```python
 policy = nb.get_policy("linux-prod")
-original_json = policy.to_api()  # copie du JSON API original, champs inconnus inclus
-configuration = policy.configuration  # corps complet de la policy
-clients_details = policy.client_details  # OS, hardware, identifiants de bases/instances...
+original_json = policy.raw  # reponse API complete, champs inconnus inclus
+data = policy.model_dump()  # dictionnaire Python
+json_text = policy.model_dump(mode="json", indent=2)  # chaine JSON formatee
 
 policy = nb.get_policy("linux-prod", resolve_slp=True)
 for name, slp in policy.slps.items():
@@ -169,22 +169,30 @@ Les erreurs de lecture SLP sont propagees. Sur une liste, utiliser
 fois pendant la collecte. Le GET SLP retourne la definition courante, pas la configuration
 historique d'une image deja sauvegardee.
 
-`backup_copies` conserve l'objet API complet : `copies`, `priority`, `failStrategy`, niveaux
-et periodes de retention. `retention` conserve sa structure `{value, unit}` ou son niveau
-numerique si seule cette information est disponible. Aucun niveau n'est transforme en duree.
-Les raccourcis `schedule.storage` et `schedule.retention` ne resument les copies que si leurs
-valeurs sont identiques ; sinon ils valent `None`. Un stockage absent du schedule n'est pas
-remplace par celui de la policy. Il faut consulter les deux niveaux pour analyser l'heritage.
+Les schedules de l'objet de base sont simplifies : nom, type, type de sauvegarde,
+frequence, fenetres, dates incluses/exclues, indicateur SLP et `backup_copies`.
+`backup_copies` conserve toutes les copies, priorites, strategies d'echec et retentions
+sous leur forme API, sans conversion ni selection d'une copie arbitraire.
+Les raccourcis `schedule.storage`, `schedule.retention` et `schedule.slp` sont supprimes.
+Les options secondaires et les schedules originaux complets restent dans `policy.raw`.
+Aucun `raw` n'est ajoute au schedule simplifie et aucun stockage herite n'y est invente.
 Une SLP ne recoit pas de retention ou destination globale calculee depuis sa premiere operation.
 
-Tous les modeles issus des parsers proposent `to_api()` et `api_attributes`. `to_api()` retourne
-une copie du JSON recu, sans champs calcules ; `model_dump()` retourne la vue Python du modele.
-Modifier une vue ou un export ne modifie pas le JSON original conserve dans `raw`.
+Chaque ressource conserve des champs utiles et un seul `raw` avec la reponse API complete.
+Les schedules et operations SLP imbriques ne dupliquent pas `raw`. Les definitions SLP ajoutees
+par `resolve_slp=True` sont des details structures ; une SLP lue directement conserve son propre
+`raw`. Les champs propres aux workloads et non exposes par le modele restent dans `raw`.
 
-Migration : `schedule.retention` n'est plus une chaine telle que `"14 DAYS"` et
-`backup_copies` n'est plus le dictionnaire de la seule premiere copie. Utiliser
-`schedule.backup_copies["copies"]` pour parcourir les copies. La resolution SLP doit etre
-explicitement demandee et ses valeurs restent dans `policy.slps`.
+`model_dump()` (ou `mode="python"`) retourne un dictionnaire Python.
+`model_dump(mode="json", indent=2)` retourne une chaine JSON, avec les dates serialisees.
+Le parametre `indent` est reserve au mode JSON. `include`, `exclude`, `by_alias` et
+`exclude_none` restent disponibles. Par exemple, `exclude={"raw"}` exporte seulement la
+structure utile. La serialisation passe uniquement par `model_dump()`.
+Modifier un export ne modifie pas le JSON original conserve dans `raw`.
+
+Migration : parcourir `schedule.backup_copies["copies"]` pour lire les stockages
+et retentions declares. La resolution SLP doit etre explicitement demandee et ses valeurs
+restent dans `policy.slps`.
 
 Liste des clients proteges, reconstruite uniquement depuis les details des policies:
 
@@ -397,7 +405,7 @@ et [Configuration / SLP 11.1](https://sort.veritas.com/public/documents/nbu/11.1
 
 Les contrats officiels Administration et Catalog des releases 10.0, 10.1.1, 10.5, 11.1
 et 11.2 ont ete compares pour ces champs. Les parsers conservent les champs inconnus dans
-`raw` et `api_attributes`, sans modifier les reponses recues. Les alias historiques restent
+`raw`, sans modifier les reponses recues. Les alias historiques restent
 acceptes lorsqu'un champ officiel est absent ; une valeur officielle `null`, vide ou zero
 n'est pas remplacee par un alias.
 

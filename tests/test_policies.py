@@ -216,7 +216,6 @@ def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> No
     assert schedule.schedule_name == "incr"
     assert schedule.schedule_type == "Calendar"
     assert schedule.backup_type == "Cumulative Incremental Backup"
-    assert schedule.retention == {"value": 14, "unit": "DAYS"}
     assert schedule.backup_copies == {
         "copies": [
             {
@@ -233,9 +232,7 @@ def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> No
     assert schedule.start_window == [
         {"durationSeconds": 7200, "startSeconds": 3600, "dayOfWeek": 1}
     ]
-    assert schedule.storage == "silver-slp"
     assert schedule.storage_is_slp is True
-    assert schedule.slp == "silver-slp"
 
 
 def test_policy_parser_tolerates_missing_fields() -> None:
@@ -314,9 +311,7 @@ def test_policy_service_resolves_slp_without_changing_configuration() -> None:
     assert policy.retention is None
     assert policy.storage == "policy-slp"
     assert policy.slp == "policy-slp"
-    assert policy.schedules[0].retention is None
-    assert policy.schedules[0].storage == "schedule-slp"
-    assert policy.schedules[0].slp == "schedule-slp"
+    assert policy.schedules[0].backup_copies == {"copies": [{"storage": "schedule-slp"}]}
     operation = policy.slps["policy-slp"].operations[0]
     assert operation.target_storage == "policy-slp-storage"
     assert operation.retention == {"value": 7, "unit": "DAYS"}

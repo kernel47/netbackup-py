@@ -4,28 +4,22 @@ from typing import Any
 
 from pydantic import Field
 
-from nbu.models.base import NbuModel
-from nbu.models.slp import SLP
+from nbu.models.base import JsonModel, NbuModel
+from nbu.models.slp import SLPDetails
 
 
-class Schedule(NbuModel):
+class Schedule(JsonModel):
+    """Readable schedule fields; the complete definition lives in Policy.raw."""
+
     schedule_name: str = ""
     schedule_type: str | None = None
     backup_type: str | None = None
-    storage_is_slp: bool | None = None
-    slp: str | None = None
-    backup_copies: dict[str, Any] | None = None
-    retention: Any | None = None
-    exclude_dates: Any | None = None
     frequency_seconds: int | None = None
-    include_dates: Any | None = None
     start_window: list[dict[str, Any]] = Field(default_factory=list)
-    storage: str | None = None
-    accelerator_forced_rescan: bool | None = None
-    media_multiplexing: int | None = None
-    retries_allowed_after_run_day: bool | None = None
-    snapshot_only: bool | None = None
-    synthetic_backup: bool | None = None
+    include_dates: Any | None = None
+    exclude_dates: Any | None = None
+    storage_is_slp: bool | None = None
+    backup_copies: dict[str, Any] | None = None
 
 
 class Policy(NbuModel):
@@ -39,8 +33,4 @@ class Policy(NbuModel):
     storage: str | None = None
     storage_is_slp: bool | None = None
     slp: str | None = None
-    # Complete configuration body; convenience fields above are only a view.
-    configuration: dict[str, Any] = Field(default_factory=dict)
-    policy_attributes: dict[str, Any] = Field(default_factory=dict)
-    client_details: list[Any] = Field(default_factory=list)
-    slps: dict[str, SLP] = Field(default_factory=dict)
+    slps: dict[str, SLPDetails] = Field(default_factory=dict)

@@ -4,10 +4,10 @@ from typing import Any
 
 from pydantic import Field
 
-from nbu.models.base import NbuModel
+from nbu.models.base import JsonModel, NbuModel
 
 
-class SLPOperation(NbuModel):
+class SLPOperation(JsonModel):
     operation: str = ""
     target_storage: str | None = None
     retention: Any | None = None
@@ -27,7 +27,7 @@ class SLPOperation(NbuModel):
     slp_window_name: str | None = None
 
 
-class SLP(NbuModel):
+class SLPDetails(JsonModel):
     name: str = ""
     active: bool | None = None
     status: str | None = None
@@ -38,3 +38,7 @@ class SLP(NbuModel):
     flag_values: list[str] = Field(default_factory=list)
     data_classification: str | None = None
     duplication_priority: int | None = None
+
+
+class SLP(SLPDetails, NbuModel):
+    """Standalone SLP resource, with the original response in raw."""
