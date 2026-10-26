@@ -5,12 +5,19 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 
 from nbu.auth import TokenState
 from nbu.config import NetBackupConfig
-from nbu.exceptions import ApiError, AuthenticationError, AuthorizationError, NotFoundError, TimeoutError
+from nbu.exceptions import (
+    ApiError,
+    AuthenticationError,
+    AuthorizationError,
+    NotFoundError,
+    TimeoutError,
+)
 
 PaginationMode = Literal["offset", "cursor"]
 
@@ -26,7 +33,9 @@ class CollectionPage:
 class ApiTransport:
     """Small retrying HTTP transport that hides httpx details from callers."""
 
-    def __init__(self, config: NetBackupConfig, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(
+        self, config: NetBackupConfig, transport: httpx.BaseTransport | None = None
+    ) -> None:
         self.config = config
         self.token = TokenState(token=config.token.get_secret_value() if config.token else None)
         client_kwargs: dict[str, Any] = {
@@ -134,7 +143,9 @@ class ApiTransport:
                 if response.status_code == 404:
                     raise NotFoundError("NetBackup API resource was not found")
                 if response.status_code >= 400:
-                    raise ApiError(f"NetBackup API returned HTTP {response.status_code}: {response.text}")
+                    raise ApiError(
+                        f"NetBackup API returned HTTP {response.status_code}: {response.text}"
+                    )
                 return response.text
             except httpx.TimeoutException as exc:
                 last_error = TimeoutError(str(exc))
@@ -365,17 +376,28 @@ class ApiTransport:
             href = next_link.get("href")
         else:
             href = next_link
+        if has_next is False:
+            return None
         if isinstance(href, str):
-            param = "page[after]=" if pagination == "cursor" else "page[offset]="
-            if param in href:
-                return href.split(param, 1)[1].split("&", 1)[0]
+            key = "page[after]" if pagination == "cursor" else "page[offset]"
+            values = parse_qs(urlsplit(href).query).get(key)
+            if values:
+                return values[0]
+        if pagination == "offset" and has_next is True:
+            try:
+                offset = int(pagination_meta["offset"])
+                size = int(pagination_meta["limit"])
+                if offset >= 0 and size > 0:
+                    return str(offset + size)
+            except (KeyError, TypeError, ValueError):
+                pass
         return None
 
     @staticmethod
     def _total_count(data: dict[str, Any]) -> int | None:
         meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
         pagination_meta = meta.get("pagination") if isinstance(meta.get("pagination"), dict) else {}
-        for key in ("total", "count", "totalRecords", "totalResults"):
+        for key in ("total", "totalRecords", "totalResults"):
             value = pagination_meta.get(key)
             if value is not None:
                 try:

@@ -216,12 +216,17 @@ def test_policy_detail_parser_handles_policy_shape_with_schedule_windows() -> No
     assert schedule.schedule_name == "incr"
     assert schedule.schedule_type == "Calendar"
     assert schedule.backup_type == "Cumulative Incremental Backup"
-    assert schedule.retention == "14 DAYS"
+    assert schedule.retention == {"value": 14, "unit": "DAYS"}
     assert schedule.backup_copies == {
-        "storage": "silver-slp",
-        "retentionPeriod": "14 DAYS",
-        "retentionLevel": 2,
-        "volumePool": "NetBackup",
+        "copies": [
+            {
+                "storage": "silver-slp",
+                "retentionPeriod": {"value": 14, "unit": "DAYS"},
+                "retentionLevel": 2,
+                "volumePool": "NetBackup",
+            }
+        ],
+        "priority": 0,
     }
     assert schedule.include_dates == {"recurringDaysOfWeek": ["MONDAY"]}
     assert schedule.exclude_dates == {"specificDates": ["2026-07-14"]}
@@ -242,7 +247,7 @@ def test_policy_parser_tolerates_missing_fields() -> None:
     assert policy.backup_selections == []
 
 
-def test_policy_service_enriches_policy_and_schedule_from_slp() -> None:
+def test_policy_service_resolves_slp_without_changing_configuration() -> None:
     seen_paths: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -266,9 +271,7 @@ def test_policy_service_enriches_policy_and_schedule_from_slp() -> None:
                                         "scheduleName": "full",
                                         "scheduleType": "Calendar",
                                         "storageIsSLP": True,
-                                        "backupCopies": {
-                                            "copies": [{"storage": "schedule-slp"}]
-                                        },
+                                        "backupCopies": {"copies": [{"storage": "schedule-slp"}]},
                                     }
                                 ],
                                 "clients": [{"hostName": "app01"}],
@@ -306,14 +309,17 @@ def test_policy_service_enriches_policy_and_schedule_from_slp() -> None:
     )
     service = PoliciesService(api.config, api, VersionManager("10.0"))
 
-    policy = service.get("linux-prod")
+    policy = service.get("linux-prod", resolve_slp=True)
 
-    assert policy.retention == "7 DAYS"
-    assert policy.storage == "policy-slp-storage"
+    assert policy.retention is None
+    assert policy.storage == "policy-slp"
     assert policy.slp == "policy-slp"
-    assert policy.schedules[0].retention == "7 DAYS"
-    assert policy.schedules[0].storage == "schedule-slp-storage"
+    assert policy.schedules[0].retention is None
+    assert policy.schedules[0].storage == "schedule-slp"
     assert policy.schedules[0].slp == "schedule-slp"
+    operation = policy.slps["policy-slp"].operations[0]
+    assert operation.target_storage == "policy-slp-storage"
+    assert operation.retention == {"value": 7, "unit": "DAYS"}
     assert seen_paths == [
         "/netbackup/config/policies/linux-prod",
         "/netbackup/config/slps/policy-slp",

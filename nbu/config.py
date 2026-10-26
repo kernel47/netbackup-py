@@ -63,22 +63,32 @@ class NetBackupConfig(BaseModel):
     @model_validator(mode="after")
     def infer_api_version(self) -> "NetBackupConfig":
         if self.api_version:
-            self._infer_service_api_versions()
             return self
-        if self.version:
-            major_minor = ".".join(self.version.split(".")[:2])
-            self.api_version = {
-                "10.0": "7.0",
-                "10.1": "8.0",
-                "10.2": "9.0",
-                "10.3": "10.0",
-                "10.4": "11.0",
-                "11.0": "13.0",
-                "11.1": "14.0",
-                "11.2": "14.0",
-            }.get(major_minor)
-        self.api_version = self.api_version or "7.0"
-        self._infer_service_api_versions()
+        if not self.version:
+            self.api_version = "7.0"
+            return self
+        from nbu.version import NetBackupVersion
+
+        release = NetBackupVersion.parse(self.version)
+        assert release is not None
+        major_minor = f"{release.major}.{release.minor}"
+        versions = {
+            "10.0": "7.0",
+            "10.1": "8.0",
+            "10.2": "9.0",
+            "10.3": "10.0",
+            "10.4": "11.0",
+            "10.5": "12.0",
+            "11.0": "13.0",
+            "11.1": "14.0",
+            "11.2": "14.0",
+        }
+        inferred = versions.get(major_minor)
+        if major_minor == "10.1" and release.patch >= 1:
+            inferred = "9.0"
+        if inferred is None:
+            raise ValueError("Unknown NetBackup release; specify api_version explicitly")
+        self.api_version = inferred
         return self
 
     @property
@@ -91,13 +101,3 @@ class NetBackupConfig(BaseModel):
         if not area:
             return self.api_version or "7.0"
         return self.api_versions.get(area, self.api_version or "7.0")
-
-    def _infer_service_api_versions(self) -> None:
-        if not self.version:
-            return
-        major_minor = ".".join(self.version.split(".")[:2])
-        defaults = {
-            "11.1": {"config_policies": "12.0"},
-            "11.2": {"config_policies": "12.0"},
-        }.get(major_minor, {})
-        self.api_versions = defaults | self.api_versions

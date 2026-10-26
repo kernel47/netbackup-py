@@ -177,8 +177,8 @@ class NetBackup:
     def list_policies(self, **kwargs: Any):
         return self.policies.list(**kwargs)
 
-    def get_policy(self, policy_name: str):
-        return self.policies.get(policy_name)
+    def get_policy(self, policy_name: str, **kwargs: Any):
+        return self.policies.get(policy_name, **kwargs)
 
     def list_policy_clients(self, **kwargs: Any):
         return self.policies.clients(**kwargs)

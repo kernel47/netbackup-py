@@ -38,3 +38,11 @@ def list_value(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     return [value]
+
+
+def first_present(mapping: dict[str, Any], *keys: str) -> Any:
+    """Read an API field without replacing an explicit null, empty string or zero."""
+    for key in keys:
+        if key in mapping:
+            return mapping[key]
+    return None

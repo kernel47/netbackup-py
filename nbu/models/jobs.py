@@ -25,3 +25,10 @@ class Job(NbuModel):
     files: int | None = None
     percent_complete: int | None = None
     backup_id: str | None = None
+    elapsed_time: str | None = None
+    active_elapsed_time: str | None = None
+    last_update_time: datetime | str | None = None
+    source_storage_unit: str | None = None
+    destination_storage_unit: str | None = None
+    kilobytes_data_transferred: int | None = None
+    kilobytes_to_transfer: int | None = None

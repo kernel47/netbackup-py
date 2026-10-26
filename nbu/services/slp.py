@@ -19,9 +19,23 @@ class SLPService(ServiceBase):
         params = self._drop_none({"filter": filter_value})
         return [
             parse_slp(item)
-            for item in self.api.get_collection(self.version.endpoint("slp"), params, limit=limit)
+            for item in self.api.get_collection(
+                self.version.endpoint("slp"),
+                params,
+                limit=limit,
+                api_version=self.config.service_api_version("config_slp"),
+            )
         ]
 
     def get(self, slp_name: str) -> SLP:
         self.version.require("slp")
-        return parse_slp(self.api.request("GET", self.version.endpoint("slp_detail", slp_name=slp_name)))
+        return parse_slp(
+            self.api.request(
+                "GET",
+                self.version.endpoint("slp_detail", slp_name=slp_name),
+                headers={
+                    "Accept": "application/vnd.netbackup+json;version="
+                    + self.config.service_api_version("config_slp")
+                },
+            )
+        )

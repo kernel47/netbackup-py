@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from nbu.exceptions import NetBackupError
 from nbu.filters import combine, contains
 from nbu.models.clients import Client
 from nbu.models.policies import Policy
-from nbu.models.slp import SLP, SLPOperation
+from nbu.models.slp import SLP
 from nbu.parsers.policies import (
     parse_policy_detail,
     parse_policy_summary,
@@ -22,8 +21,11 @@ class PoliciesService(ServiceBase):
         filter: str | None = None,
         limit: int | None = None,
         include_details: bool = False,
+        resolve_slp: bool = False,
     ) -> list[Policy]:
         self.version.require("policies")
+        if resolve_slp and not include_details:
+            raise ValueError("resolve_slp requires include_details=True")
         filter_value = combine(filter, contains("policyName", name) if name else None)
         params = self._drop_none({"filter": filter_value})
         api_version = self.config.service_api_version("config_policies")
@@ -38,9 +40,14 @@ class PoliciesService(ServiceBase):
         ]
         if not include_details:
             return policies
-        return [self.get(policy.name) for policy in policies]
+        cache: dict[str, SLP] = {}
+        details = [self.get(policy.name) for policy in policies]
+        if resolve_slp:
+            for policy in details:
+                self._resolve_slps(policy, cache)
+        return details
 
-    def get(self, policy_name: str) -> Policy:
+    def get(self, policy_name: str, *, resolve_slp: bool = False) -> Policy:
         self.version.require("policies")
         api_version = self.config.service_api_version("config_policies")
         headers = {"Accept": f"application/vnd.netbackup+json;version={api_version}"}
@@ -51,7 +58,8 @@ class PoliciesService(ServiceBase):
                 headers=headers,
             )
         )
-        self._enrich_slp(policy)
+        if resolve_slp:
+            self._resolve_slps(policy, {})
         return policy
 
     def clients(
@@ -65,39 +73,19 @@ class PoliciesService(ServiceBase):
         policies = self.list(name=name, filter=filter, limit=limit, include_details=True)
         return parse_protected_clients(policies)
 
-    def _get_slp(self, slp_name: str, cache: dict[str, SLP | None]) -> SLP | None:
-        if slp_name not in cache:
-            try:
-                cache[slp_name] = parse_slp(
-                    self.api.request("GET", self.version.endpoint("slp_detail", slp_name=slp_name))
+    def _resolve_slps(self, policy: Policy, cache: dict[str, SLP]) -> None:
+        names = {policy.slp} if policy.slp else set()
+        names.update(schedule.slp for schedule in policy.schedules if schedule.slp)
+        for name in sorted(names):
+            if name not in cache:
+                cache[name] = parse_slp(
+                    self.api.request(
+                        "GET",
+                        self.version.endpoint("slp_detail", slp_name=name),
+                        headers={
+                            "Accept": "application/vnd.netbackup+json;version="
+                            + self.config.service_api_version("config_slp")
+                        },
+                    )
                 )
-            except NetBackupError:
-                cache[slp_name] = None
-        return cache[slp_name]
-
-    @staticmethod
-    def _backup_operation(slp: SLP) -> SLPOperation | None:
-        return next(
-            (operation for operation in slp.operations if operation.operation.upper() == "BACKUP"),
-            slp.operations[0] if slp.operations else None,
-        )
-
-    def _enrich_slp(self, policy: Policy) -> None:
-        cache: dict[str, SLP | None] = {}
-        if policy.storage_is_slp and policy.storage:
-            slp = self._get_slp(policy.storage, cache)
-            operation = self._backup_operation(slp) if slp else None
-            if slp and slp.retention is not None:
-                policy.retention = slp.retention
-            if operation and operation.target_storage:
-                policy.storage = operation.target_storage
-
-        for schedule in policy.schedules:
-            if not schedule.storage_is_slp or not schedule.storage:
-                continue
-            slp = self._get_slp(schedule.storage, cache)
-            operation = self._backup_operation(slp) if slp else None
-            if slp and slp.retention is not None:
-                schedule.retention = slp.retention
-            if operation and operation.target_storage:
-                schedule.storage = operation.target_storage
+            policy.slps[name] = cache[name].model_copy(deep=True)

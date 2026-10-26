@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
+
+from pydantic import Field
 
 from nbu.models.base import NbuModel
 
@@ -19,3 +22,10 @@ class Image(NbuModel):
     copy_number: int | None = None
     storage_location: str | None = None
     kilobytes: int | None = None
+    fragments: list[dict[str, Any]] = Field(default_factory=list)
+    num_copies: int | None = None
+    primary_copy: int | None = None
+    num_files: int | None = None
+    elapsed_seconds: int | None = None
+    slp_name: str | None = None
+    slp_version: int | None = None

@@ -48,8 +48,8 @@ def test_jobs_filter_uses_cursor_pagination_and_raw_iso_dates() -> None:
     assert jobs[0].job_id == 100
     assert seen["after"] is None
     assert seen["filter"] == (
-        "status eq 0 and startTime ge 2026-07-01T00:00:00Z and "
-        "startTime le 2026-07-02T00:00:00Z and jobType eq 'BACKUP'"
+        "(status eq 0) and (startTime ge 2026-07-01T00:00:00Z) and "
+        "(startTime le 2026-07-02T00:00:00Z) and (jobType eq 'BACKUP')"
     )
 
 
@@ -74,7 +74,7 @@ def test_jobs_filter_supports_recent_hours_and_running_state(
 
     service.list(last_hours=1, job_state="running")
 
-    assert seen["filter"] == "startTime ge 2026-07-08T09:00:00Z and state eq 'ACTIVE'"
+    assert seen["filter"] == "(startTime ge 2026-07-08T09:00:00Z) and (state eq 'ACTIVE')"
 
 
 def test_images_filter_uses_offset_pagination_and_custom_filter() -> None:
@@ -118,14 +118,16 @@ def test_images_filter_uses_offset_pagination_and_custom_filter() -> None:
     assert images[0].schedule_type == "FULL"
     assert seen["offset"] is None
     assert seen["filter"] == (
-        "scheduleType eq 'FULL' and clientName eq 'app01' and "
-        "backupTime ge 2026-07-01T00:00:00Z"
+        "(scheduleType eq 'FULL') and (clientName eq 'app01') and "
+        "(backupTime ge 2026-07-01T00:00:00Z)"
     )
 
 
 def test_images_filter_supports_recent_hours(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: dict[str, str | None] = {}
-    monkeypatch.setattr("nbu.services.images._since_last_hours", lambda hours: "2026-07-08T09:00:00Z")
+    monkeypatch.setattr(
+        "nbu.services.images._since_last_hours", lambda hours: "2026-07-08T09:00:00Z"
+    )
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen["filter"] = request.url.params.get("filter")
@@ -142,7 +144,7 @@ def test_images_filter_supports_recent_hours(monkeypatch: pytest.MonkeyPatch) ->
 
     service.list(last_hours=24, policy="linux-prod")
 
-    assert seen["filter"] == "policyName eq 'linux-prod' and backupTime ge 2026-07-08T09:00:00Z"
+    assert seen["filter"] == "(policyName eq 'linux-prod') and (backupTime ge 2026-07-08T09:00:00Z)"
 
 
 def test_image_detail_and_contents_wrappers() -> None:

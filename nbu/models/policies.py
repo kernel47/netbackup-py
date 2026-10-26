@@ -5,6 +5,7 @@ from typing import Any
 from pydantic import Field
 
 from nbu.models.base import NbuModel
+from nbu.models.slp import SLP
 
 
 class Schedule(NbuModel):
@@ -20,6 +21,11 @@ class Schedule(NbuModel):
     include_dates: Any | None = None
     start_window: list[dict[str, Any]] = Field(default_factory=list)
     storage: str | None = None
+    accelerator_forced_rescan: bool | None = None
+    media_multiplexing: int | None = None
+    retries_allowed_after_run_day: bool | None = None
+    snapshot_only: bool | None = None
+    synthetic_backup: bool | None = None
 
 
 class Policy(NbuModel):
@@ -33,3 +39,8 @@ class Policy(NbuModel):
     storage: str | None = None
     storage_is_slp: bool | None = None
     slp: str | None = None
+    # Complete configuration body; convenience fields above are only a view.
+    configuration: dict[str, Any] = Field(default_factory=dict)
+    policy_attributes: dict[str, Any] = Field(default_factory=dict)
+    client_details: list[Any] = Field(default_factory=list)
+    slps: dict[str, SLP] = Field(default_factory=dict)

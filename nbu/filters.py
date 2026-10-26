@@ -34,4 +34,6 @@ def contains(field: str, value: Any) -> str:
 
 def combine(*parts: str | None) -> str | None:
     clean = [part for part in parts if part]
-    return " and ".join(clean) if clean else None
+    if len(clean) <= 1:
+        return clean[0] if clean else None
+    return " and ".join(f"({part})" for part in clean)
